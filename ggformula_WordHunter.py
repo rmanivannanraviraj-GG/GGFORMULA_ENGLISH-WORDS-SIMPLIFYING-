@@ -5,6 +5,10 @@ import textwrap
 import os
 import requests
 import gzip
+import nltk
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+
 from io import BytesIO
 from pathlib import Path
 
@@ -253,3 +257,4 @@ with col2:
 
 # Footer / kid styling note
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar. For persistent additions, update the upstream wordlist file (GitHub Release / HF Hub).</div>", unsafe_allow_html=True)
+
