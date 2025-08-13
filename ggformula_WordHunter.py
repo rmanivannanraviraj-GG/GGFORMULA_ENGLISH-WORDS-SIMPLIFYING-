@@ -20,6 +20,72 @@ st.title("📚 Word Hunter - English to Tamil Dictionary")
 # Input
 suffix = st.text_input("Enter a word suffix:")
 
+# 🌈 Page Config
+st.set_page_config(page_title="Word Hunter 🐥", page_icon="📚", layout="wide")
+
+# 🎨 Custom CSS for Kids Style
+st.markdown("""
+    <style>
+    .main {
+        background-color: #fff6f0;
+        padding: 20px;
+        border-radius: 20px;
+    }
+    h1 {
+        color: #ff6600 !important;
+        font-family: 'Comic Sans MS', cursive;
+    }
+    h3 {
+        color: #ff3399 !important;
+    }
+    .stDataFrame {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    div[data-testid="stDownloadButton"] {
+        background-color: #ffcc00;
+        color: black;
+        border-radius: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 🎯 Title
+st.markdown("<h1>🐥 Word Hunter 📚 — Let's Learn English & Tamil!</h1>", unsafe_allow_html=True)
+st.write("💡 Type a **suffix** and discover English words with Tamil meanings!")
+
+# ✏️ Input box
+suffix = st.text_input("✨ Enter a word suffix (like 'ing', 'tion'):")
+
+# 🚀 Search Logic
+if suffix:
+    st.info("🔍 Searching words... please wait ⏳")
+
+    words = [w for w in set(wordnet.all_lemma_names()) if w.endswith(suffix)]
+    st.markdown(f"<h3>🎉 {len(words)} words found with suffix '{suffix}'</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    data = []
+    for w in words:
+        synsets = wordnet.synsets(w)
+        pos = set(s.pos() for s in synsets)
+        meaning_en = "; ".join(set(s.definition() for s in synsets))
+        meaning_ta = GoogleTranslator(source='en', target='ta').translate(meaning_en) if meaning_en else ""
+        data.append([w, ", ".join(pos), meaning_en, meaning_ta])
+
+    # 📊 Table with wider columns
+    df = pd.DataFrame(data, columns=["Word", "POS", "Meaning (EN)", "Meaning (TA)"])
+    st.dataframe(df, use_container_width=True, height=600)
+
+    # 📥 Download Excel
+    excel_file = "word_results.xlsx"
+    df.to_excel(excel_file, index=False)
+    with open(excel_file, "rb") as f:
+        st.download_button("📥 Download Your Word List", f, file_name=excel_file)
+
+else:
+    st.warning("🖊️ Please enter a suffix to start the word hunt!")
 # Search & Display
 if suffix:
     words = [w for w in set(wordnet.all_lemma_names()) if w.endswith(suffix)]
@@ -293,5 +359,6 @@ with col2:
 
 # Footer / kid styling note
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar. For persistent additions, update the upstream wordlist file (GitHub Release / HF Hub).</div>", unsafe_allow_html=True)
+
 
 
