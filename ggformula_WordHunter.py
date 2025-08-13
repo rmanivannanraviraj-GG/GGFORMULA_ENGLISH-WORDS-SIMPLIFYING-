@@ -1,316 +1,255 @@
-# suffix_search_full_ui_height_up.py
-import os
-import textwrap
-import tkinter as tk
-from tkinter import ttk, filedialog, simpledialog, messagebox
+# app_streamlit_suffix.py
+import streamlit as st
 import pandas as pd
+import textwrap
+import os
+import requests
+import gzip
+from io import BytesIO
+from pathlib import Path
 
 # optional libs
 try:
     from nltk.corpus import wordnet
     import nltk
 except Exception as e:
-    raise RuntimeError("Please install nltk (pip install nltk) and ensure it's available.") from e
+    st.error("Please install nltk and download 'wordnet' (see README).")
+    raise
 
 try:
     from deep_translator import GoogleTranslator
 except Exception:
-    GoogleTranslator = None  # translation will be skipped if unavailable
+    GoogleTranslator = None
 
-# ---------- Config ----------
-WORDLIST_PATH = r"E:\SuffixSearchAp\largest_possible_aspell_wordlist.txt"  # change if needed
-WRAP_EN = 80   # wrap width for English defs when inserting into table (visual)
-WRAP_TA = 100  # wrap width for Tamil defs before inserting into table
+# ---------- CONFIG ----------
+st.set_page_config(page_title="Suffix Learner", layout="wide")
+WORDLIST_REMOTE_URL = st.secrets.get("WORDLIST_REMOTE_URL", None)  # set in Streamlit Cloud secrets or replace below
+# If you prefer, hardcode a public url here (not recommended for secrets):
+# WORDLIST_REMOTE_URL = "https://<your-host>/largest_possible_aspell_wordlist.txt"
+CACHE_DIR = Path("data")
+CACHE_DIR.mkdir(exist_ok=True)
+CACHE_PATH = CACHE_DIR / "wordlist.txt"
+CACHE_GZ_PATH = CACHE_DIR / "wordlist.txt.gz"
+
 POS_MAP = {'n': 'Noun', 'v': 'Verb', 'a': 'Adjective', 's': 'Adjective Satellite', 'r': 'Adverb'}
-
-# ensure wordnet downloaded
-try:
-    nltk.data.find("corpora/wordnet")
-except Exception:
-    nltk.download("wordnet")
-    nltk.download("omw-1.4")
+WRAP_EN = 80
+WRAP_TA = 100
 
 # ---------- Helpers ----------
-def load_wordlist(path):
-    if not os.path.exists(path):
-        messagebox.showerror("Missing file", f"Word list not found at: {path}")
+@st.cache_data(show_spinner=False)
+def ensure_wordnet():
+    try:
+        nltk.data.find("corpora/wordnet")
+    except Exception:
+        nltk.download("wordnet")
+        nltk.download("omw-1.4")
+
+def download_remote_wordlist(url: str, dest: Path):
+    """Download remote file (supports .gz or plain txt). Shows progress in Streamlit."""
+    resp = requests.get(url, stream=True, timeout=120)
+    resp.raise_for_status()
+    total = int(resp.headers.get("content-length", 0))
+    chunk_size = 1024 * 1024
+    with st.spinner("Downloading wordlist (first-time)..."):
+        with open(dest, "wb") as f:
+            downloaded = 0
+            p = st.progress(0)
+            for chunk in resp.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total:
+                        p.progress(min(100, int(downloaded / total * 100)))
+    return dest
+
+def load_wordlist_from_path(path: Path):
+    """Load wordlist (txt or gz) into memory (list). Cached by streamlit cache."""
+    if not path.exists():
         return []
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        words = [w.strip() for w in f.read().split() if w.strip()]
-    # unique, case-preserve but sort short->long then lexicographically
+    # detect gz
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8", errors="ignore") as f:
+            words = [w.strip() for w in f if w.strip()]
+    else:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            words = [w.strip() for w in f if w.strip()]
+    # unique and sort (short->long)
     words = sorted(set(words), key=lambda x: (len(x), x.lower()))
     return words
 
-def append_word_to_file(path, word):
-    with open(path, "a", encoding="utf-8") as f:
-        f.write("\n" + word.strip())
-
-def get_wordnet_meanings_for_table(word):
-    syns = wordnet.synsets(word)
-    rows = []
-    if not syns:
-        return rows
-    for i, syn in enumerate(syns, start=1):
-        pos_full = POS_MAP.get(syn.pos(), syn.pos())
-        eng = syn.definition()
-        ta = ""
-        if GoogleTranslator:
-            try:
-                ta = GoogleTranslator(source='auto', target='ta').translate(eng)
-            except Exception:
-                ta = ""
-        rows.append((str(i), pos_full, eng, ta))
-    return rows
-
-def export_tree_to_excel(tree, initialfile="meanings_export.xlsx"):
-    items = tree.get_children()
-    if not items:
-        messagebox.showinfo("No data", "No rows to export.")
-        return
-    data = []
-    for iid in items:
-        vals = tree.item(iid)['values']
-        # expected: No, POS, English, Tamil
-        if len(vals) >= 4:
-            no, pos, eng, ta = vals[0], vals[1], vals[2], vals[3]
-        else:
-            # fallback
-            no = vals[0] if len(vals)>0 else ""
-            pos = vals[1] if len(vals)>1 else ""
-            eng = vals[2] if len(vals)>2 else ""
-            ta = vals[3] if len(vals)>3 else ""
-        data.append({"No": no, "POS": pos, "English Definition": eng, "Tamil Translation": ta})
-    df = pd.DataFrame(data)
-    fp = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files","*.xlsx")], initialfile=initialfile)
-    if not fp:
-        return
+@st.cache_data(show_spinner=False)
+def get_words(remote_url: str):
+    """Ensure cached file exists; otherwise download. Returns word list."""
+    # prefer already cached plain file
+    if CACHE_PATH.exists() and CACHE_PATH.stat().st_size > 0:
+        return load_wordlist_from_path(CACHE_PATH)
+    # else if gz cached
+    if CACHE_GZ_PATH.exists() and CACHE_GZ_PATH.stat().st_size > 0:
+        return load_wordlist_from_path(CACHE_GZ_PATH)
+    # else download from remote_url
+    if not remote_url:
+        return []
+    # decide file name by remote extension
+    if remote_url.endswith(".gz"):
+        dest = CACHE_GZ_PATH
+    else:
+        dest = CACHE_PATH
     try:
-        with pd.ExcelWriter(fp, engine="xlsxwriter") as writer:
-            df.to_excel(writer, sheet_name="Meanings", index=False)
-            workbook = writer.book
-            worksheet = writer.sheets["Meanings"]
-            header_fmt = workbook.add_format({"bold": True, "bg_color": "#FFD700"})
-            wrap_fmt = workbook.add_format({"text_wrap": True})
-            for cnum, col in enumerate(df.columns):
-                worksheet.write(0, cnum, col, header_fmt)
-                # set wide columns for English and Tamil
-                if col == "English Definition":
-                    worksheet.set_column(cnum, cnum, 80, wrap_fmt)
-                elif col == "Tamil Translation":
-                    worksheet.set_column(cnum, cnum, 120, wrap_fmt)
-                else:
-                    worksheet.set_column(cnum, cnum, 20, wrap_fmt)
-        messagebox.showinfo("Exported", f"Exported to {fp}")
+        download_remote_wordlist(remote_url, dest)
     except Exception as e:
-        messagebox.showerror("Export failed", str(e))
+        st.error(f"Failed to download wordlist: {e}")
+        return []
+    return load_wordlist_from_path(dest)
 
-# ---------- GUI ----------
-class SuffixSearchUI:
-    def __init__(self, master):
-        self.master = master
-        master.title("Suffix Search — Full")
-        # increased vertical space to accommodate larger widgets
-        master.geometry("1400x1000")
+@st.cache_data(show_spinner=False)
+def translate_to_tamil(text: str):
+    if not GoogleTranslator:
+        return ""
+    try:
+        return GoogleTranslator(source='auto', target='ta').translate(text)
+    except Exception:
+        return ""
 
-        # data
-        self.words = load_wordlist(WORDLIST_PATH)
-
-        # Top controls
-        top = ttk.Frame(master, padding=8)
-        top.pack(fill="x")
-
-        ttk.Label(top, text="Suffix:", width=8).grid(row=0, column=0, sticky="w")
-        self.suffix_var = tk.StringVar()
-        self.suffix_entry = ttk.Entry(top, textvariable=self.suffix_var, width=20)
-        self.suffix_entry.grid(row=0, column=1, padx=6)
-
-        ttk.Label(top, text="Letters before suffix:", width=18).grid(row=0, column=2, sticky="w")
-        self.before_var = tk.StringVar(value="0")
-        self.before_entry = ttk.Entry(top, textvariable=self.before_var, width=6)
-        self.before_entry.grid(row=0, column=3, padx=6)
-
-        btn_search = ttk.Button(top, text="Search (with before-count)", command=self.search_with_before)
-        btn_search.grid(row=0, column=4, padx=6)
-
-        btn_show_all = ttk.Button(top, text="Show All Related Words", command=self.show_all_related)
-        btn_show_all.grid(row=0, column=5, padx=6)
-
-        btn_add = ttk.Button(top, text="Add Word", command=self.add_word_dialog)
-        btn_add.grid(row=0, column=6, padx=6)
-
-        btn_export = ttk.Button(top, text="Export Meanings to Excel", command=self.export_meanings)
-        btn_export.grid(row=0, column=7, padx=6)
-
-        # matched count label
-        self.count_label = ttk.Label(top, text=f"Matched: 0    (Total words in list: {len(self.words)})")
-        self.count_label.grid(row=0, column=8, padx=12)
-
-        # Main frames
-        main = ttk.Frame(master, padding=6)
-        main.pack(fill="both", expand=True)
-
-        # Left: results text (allows suffix highlight)
-        left = ttk.Frame(main)
-        left.pack(side="left", fill="y", padx=8, pady=8)
-
-        ttk.Label(left, text="Matched words:").pack(anchor="w")
-        # ==== HEIGHT INCREASED HERE ====
-        self.results_text = tk.Text(left, width=30, height=50, wrap="none", font=("Arial", 12))
-        # previous height was 40; increased to 50 as per request
-        # =================================
-        self.results_text.pack(side="left", fill="y")
-        self.results_text.tag_configure("suffix", foreground="red", font=("Arial", 12, "bold"))
-        self.results_text.bind("<Button-1>", self.on_results_click)
-
-        # vertical scrollbar for results_text
-        scr_left = ttk.Scrollbar(left, orient="vertical", command=self.results_text.yview)
-        scr_left.pack(side="left", fill="y")
-        self.results_text.config(yscrollcommand=scr_left.set)
-
-        # Right: meanings table with large Tamil column and vertical scroll
-        right = ttk.Frame(main)
-        right.pack(side="left", fill="both", expand=True, padx=8, pady=8)
-
-        ttk.Label(right, text="Meanings Table (click a word on left)").pack(anchor="w")
-
-        cols = ("No", "POS", "English", "Tamil")
-        # ==== TREE HEIGHT INCREASED HERE ====
-        # set heights per user's request: POS=140, English=500, Tamil=900 (approx)
-        self.tree = ttk.Treeview(right, columns=cols, show="headings", height=25)
-        # previous tree height unspecified or small; now set to 25 rows for greater vertical space
-        # =======================================
-        for c in cols:
-            self.tree.heading(c, text=c)
-        # ====== COLUMN WIDTHS INCREASED AS REQUESTED ======
-        self.tree.column("No", width=60, anchor="center")
-        self.tree.column("POS", width=180, anchor="center")   # ↑ அகலம் அதிகரிப்பு
-        self.tree.column("English", width=600, anchor="w")    # ↑ அகலம் அதிகரிப்பு
-        self.tree.column("Tamil", width=1200, anchor="w")     # ↑ அகலம் அதிகரிப்பு
-        # ===================================================
-        self.tree.pack(side="left", fill="both", expand=True)
-
-        scr_right = ttk.Scrollbar(right, orient="vertical", command=self.tree.yview)
-        scr_right.pack(side="left", fill="y")
-        self.tree.config(yscrollcommand=scr_right.set)
-
-        # bottom status and instructions
-        bottom = ttk.Frame(master, padding=6)
-        bottom.pack(fill="x")
-        ttk.Label(bottom, text="Tip: Click a word in the left panel to load meanings here.").pack(side="left")
-
-        # internal currently displayed meanings word
-        self.current_selected_word = None
-        self.last_suffix = ""
-
-    # ---------- actions ----------
-    def search_with_before(self):
-        suffix = self.suffix_var.get().strip().lower()
-        if not suffix:
-            messagebox.showwarning("Input", "Enter a suffix first.")
-            return
-        try:
-            before = int(self.before_var.get().strip())
-            if before < 0:
-                before = 0
-        except Exception:
-            before = 0
-        matched = [w for w in self.words if w.lower().endswith(suffix) and (len(w)-len(suffix)) == before]
-        matched = sorted(matched, key=len)
-        self.show_matched_words(matched, suffix)
-
-    def show_all_related(self):
-        suffix = self.suffix_var.get().strip().lower()
-        if not suffix:
-            messagebox.showwarning("Input", "Enter a suffix first.")
-            return
-        matched = [w for w in self.words if w.lower().endswith(suffix)]
-        matched = sorted(matched, key=len)
-        self.show_matched_words(matched, suffix)
-
-    def show_matched_words(self, matched, suffix):
-        # clear results_text
-        self.results_text.config(state="normal")
-        self.results_text.delete("1.0", tk.END)
-        if not matched:
-            self.results_text.insert(tk.END, "No matches found.\n")
-            self.count_label.config(text=f"Matched: 0    (Total words in list: {len(self.words)})")
-            self.results_text.config(state="disabled")
-            return
-        for w in matched:
-            # insert part before suffix (normal) and suffix part (tagged)
-            if suffix and w.lower().endswith(suffix):
-                prefix = w[:-len(suffix)]
-                sfx = w[-len(suffix):]
-                self.results_text.insert(tk.END, prefix)
-                # mark start index for tag
-                start = self.results_text.index(tk.INSERT)
-                self.results_text.insert(tk.END, sfx + "\n")
-                end = self.results_text.index(tk.INSERT)
-                # apply tag to suffix portion
-                self.results_text.tag_add("suffix", start, end)
+def find_matches(words, suffix, before_letters):
+    suf = suffix.lower()
+    matched = []
+    for w in words:
+        if w.lower().endswith(suf):
+            if before_letters is None:
+                matched.append(w)
             else:
-                self.results_text.insert(tk.END, w + "\n")
-        self.results_text.config(state="disabled")
-        self.count_label.config(text=f"Matched: {len(matched)}    (Total words in list: {len(self.words)})")
-        # store last suffix for click-handling highlight clarity
-        self.last_suffix = suffix
+                before_part = w[:-len(suf)]
+                if len(before_part) == before_letters:
+                    matched.append(w)
+    matched.sort(key=len)
+    return matched
 
-    def on_results_click(self, event):
-        # Determine clicked line number
-        idx = self.results_text.index(f"@{event.x},{event.y}")
-        line = idx.split(".")[0]
-        # get full line content
-        line_text = self.results_text.get(f"{line}.0", f"{line}.end").strip()
-        if not line_text or line_text == "No matches found.":
-            return
-        # line_text is the full word (prefix+suffix)
-        word = line_text
-        self.current_selected_word = word
-        # populate tree with meanings
-        self.load_meanings_into_tree(word)
+def make_highlight_html(word, suf):
+    if suf and word.lower().endswith(suf.lower()):
+        p = word[:-len(suf)]
+        s = word[-len(suf):]
+        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
+    else:
+        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
-    def load_meanings_into_tree(self, word):
-        # clear tree
-        for iid in self.tree.get_children():
-            self.tree.delete(iid)
-        syns = get_wordnet_meanings_for_table(word)
+# ---------- UI ----------
+ensure_wordnet()
+
+st.markdown("""
+<style>
+.app-header {background: linear-gradient(90deg,#ffecd2,#fcb69f); padding: 12px; border-radius: 8px;}
+.kid-card {background:#fffbe6; border-radius:8px; padding:12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
+.word-box {background:#fff; border-radius:6px; padding:8px; margin-bottom:6px;}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("<div class='app-header'><h1 style='margin:0'>🎈 Suffix Learner — Fun with Words</h1><small>Find words by suffix, see English meanings & Tamil translations</small></div>", unsafe_allow_html=True)
+st.write(" ")
+
+# Sidebar: settings / add word / remote url config
+with st.sidebar:
+    st.header("🔧 Settings")
+    st.markdown("**Remote wordlist URL** (recommended: set as Streamlit Secret `WORDLIST_REMOTE_URL`) or paste here:")
+    remote_input = st.text_input("Remote wordlist URL (optional)", value=WORDLIST_REMOTE_URL or "")
+    before_letters = st.number_input("Letters before suffix (exact). Leave 0 for any", min_value=0, step=1, value=1)
+    st.markdown("---")
+    st.header("➕ Add a new word (local)")
+    add_w = st.text_input("Add word (single token)")
+    if st.button("Add to local list"):
+        if not add_w.strip():
+            st.warning("Enter a word.")
+        else:
+            # append to cache file (will persist only in this app instance)
+            CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(CACHE_PATH, "a", encoding="utf-8") as f:
+                f.write("\n" + add_w.strip())
+            st.success(f"Added '{add_w.strip()}' to local cache. (Note: Streamlit instance storage is ephemeral.)")
+    st.markdown("---")
+    st.write("💡 Tips:")
+    st.write("- Host big wordlist as GitHub Release or Hugging Face file and paste its public URL above (or set secret).")
+    st.write("- If using Google Drive, provide the direct-download URL.")
+
+# Load words (use remote_input if set, else secret)
+remote_url = remote_input.strip() or WORDLIST_REMOTE_URL
+words = get_words(remote_url)
+
+# Layout: left matches, right meanings
+col1, col2 = st.columns([1,2])
+
+with col1:
+    st.subheader("🔎 Search")
+    suff = st.text_input("Suffix (e.g. ight)", value="ight")
+    exact_before = st.number_input("Letters before suffix (exact count)", min_value=0, step=1, value=before_letters)
+    if st.button("Search"):
+        pass  # trigger rerun - logic below handles live rendering
+
+    # compute exact matches and related
+    matches_exact = find_matches(words, suff, exact_before if exact_before>0 else None)
+    matches_related = [w for w in words if w.lower().endswith(suff.lower())] if suff else []
+
+    st.markdown(f"**Exact matches:** {len(matches_exact)}  —  **Related:** {len(matches_related)}")
+    st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
+    # show exact matches first, then related if none
+    display_list = matches_exact if matches_exact else matches_related
+    for w in display_list[:5000]:  # safety limit
+        # each item clickable via selectbox below; for visual highlight we show HTML
+        st.markdown(make_highlight_html(w, suff), unsafe_allow_html=True)
+    if len(display_list) > 5000:
+        st.info("Showing first 5000 matches; refine suffix or before-count to narrow results.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.write(" ")
+    st.markdown("🔁 Quick pick (click to load on right):")
+    chosen = st.selectbox("Choose a word", [""] + display_list[:200])  # limit select box size
+    if chosen:
+        st.experimental_set_query_params(selected=chosen)  # optional
+
+with col2:
+    st.subheader("📘 Meanings & Translations")
+    word_to_show = st.text_input("Type or choose a word", value=st.experimental_get_query_params().get("selected", [""])[0] or chosen or "")
+    if word_to_show:
+        st.markdown(f"### 🔤 **{word_to_show}**")
+        syns = wordnet.synsets(word_to_show)
         if not syns:
-            # insert a single row saying no meaning
-            self.tree.insert("", tk.END, values=("", "No meaning found", "", ""))
-            return
-        for no, pos, eng, ta in syns:
-            # wrap english and tamil to avoid extremely long lines (Treeview will show newlines)
-            eng_wrapped = "\n".join(textwrap.wrap(eng, WRAP_EN)) if eng else ""
-            ta_wrapped = "\n".join(textwrap.wrap(ta, WRAP_TA)) if ta else ""
-            # Insert 4-column row: No, POS, English, Tamil
-            self.tree.insert("", tk.END, values=(no, pos, eng_wrapped, ta_wrapped))
+            st.info("No WordNet meanings found for this word.")
+        else:
+            rows = []
+            for i, syn in enumerate(syns, start=1):
+                pos = POS_MAP.get(syn.pos(), syn.pos())
+                eng = syn.definition()
+                ta = translate_to_tamil(eng) if GoogleTranslator else ""
+                eng_w = "<br>".join(textwrap.wrap(eng, WRAP_EN))
+                ta_w = "<br>".join(textwrap.wrap(ta, WRAP_TA)) if ta else ""
+                rows.append((str(i), pos, eng_w, ta_w))
+            # HTML table
+            html = "<table style='width:100%; border-collapse:collapse;'>"
+            html += "<tr style='background:#ffe0b2'><th style='padding:8px'>No</th><th>POS</th><th>English</th><th>Tamil</th></tr>"
+            for no,pos,eng_w,ta_w in rows:
+                html += f"<tr><td style='padding:8px;border-bottom:1px solid #eee'>{no}</td>"
+                html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{pos}</td>"
+                html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{eng_w}</td>"
+                html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{ta_w}</td></tr>"
+            html += "</table>"
+            st.markdown(html, unsafe_allow_html=True)
 
-    def add_word_dialog(self):
-        new = simpledialog.askstring("Add Word", "Enter single-word to add (no spaces):")
-        if not new:
-            return
-        new = new.strip()
-        if not new:
-            return
-        if new in self.words:
-            messagebox.showinfo("Exists", f"'{new}' is already in the list.")
-            return
-        # append to memory and file
-        self.words.append(new)
-        # keep sorted by length then lexicographically
-        self.words = sorted(set(self.words), key=lambda x: (len(x), x.lower()))
-        try:
-            append_word_to_file(WORDLIST_PATH, new)
-            messagebox.showinfo("Added", f"'{new}' added to wordlist.")
-            self.count_label.config(text=f"Matched: 0    (Total words in list: {len(self.words)})")
-        except Exception as e:
-            messagebox.showerror("Write error", f"Failed to save word: {e}")
+        # export current meanings to excel
+        if st.button("Export current meanings to Excel"):
+            if not syns:
+                st.warning("No meanings to export.")
+            else:
+                data = []
+                for i, syn in enumerate(syns, start=1):
+                    pos = POS_MAP.get(syn.pos(), syn.pos())
+                    eng = syn.definition()
+                    ta = translate_to_tamil(eng) if GoogleTranslator else ""
+                    data.append({"No": i, "POS": pos, "English Definition": eng, "Tamil Translation": ta})
+                df = pd.DataFrame(data)
+                towrite = BytesIO()
+                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                    df.to_excel(writer, index=False, sheet_name="Meanings")
+                    writer.save()
+                towrite.seek(0)
+                st.download_button("Download Excel", towrite, file_name=f"{word_to_show}_meanings.xlsx")
 
-    def export_meanings(self):
-        export_tree_to_excel(self.tree, initialfile="meanings_export.xlsx")
-
-# ---------- run ----------
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = SuffixSearchUI(root)
-    root.mainloop()
+# Footer / kid styling note
+st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar. For persistent additions, update the upstream wordlist file (GitHub Release / HF Hub).</div>", unsafe_allow_html=True)
