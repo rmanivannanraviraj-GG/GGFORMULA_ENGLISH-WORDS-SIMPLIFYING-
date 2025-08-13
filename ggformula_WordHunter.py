@@ -1,4 +1,4 @@
-# app_streamlit_suffix_full.py
+# app_streamlit_suffix_ready.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -15,9 +15,6 @@ import nltk
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# Title
-st.title("📚 Word Hunter - English to Tamil Dictionary")
-
 # ---------- CONFIG ----------
 st.set_page_config(page_title="Suffix Learner", layout="wide")
 CACHE_DIR = Path("data")
@@ -28,6 +25,7 @@ CACHE_GZ_PATH = CACHE_DIR / "wordlist.txt.gz"
 POS_MAP = {'n': 'Noun', 'v': 'Verb', 'a': 'Adjective', 's': 'Adjective Satellite', 'r': 'Adverb'}
 WRAP_EN = 80
 WRAP_TA = 100
+
 # ---------- Helpers ----------
 @st.cache_data(show_spinner=False)
 def ensure_wordnet():
@@ -65,12 +63,10 @@ def make_highlight_html(word, suf):
     else:
         return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
-# ---------- UI ----------
-ensure_wordnet()
-
+# ---------- UI Styling ----------
 st.markdown("""
 <style>
-.app-header {background: linear-gradient(90deg,#ffecd2,#fcb69f); padding: 12px; border-radius: 8px;}
+.app-header {background: linear-gradient(90deg,#a1c4fd,#c2e9fb); padding: 12px; border-radius: 8px;}
 .kid-card {background:#fffbe6; border-radius:8px; padding:12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
 .word-box {background:#fff; border-radius:6px; padding:8px; margin-bottom:6px;}
 </style>
@@ -79,93 +75,77 @@ st.markdown("""
 st.markdown("<div class='app-header'><h1 style='margin:0'>🎈 Suffix Learner — Fun with Words</h1><small>Find words by suffix, see English meanings & Tamil translations</small></div>", unsafe_allow_html=True)
 st.write(" ")
 
-# Sidebar: settings / add word
+# Sidebar
 with st.sidebar:
     st.header("🔧 Settings")
-    st.markdown("**Remote wordlist URL**:")
-    remote_input = st.text_input("Remote wordlist URL (optional)", value=WORDLIST_REMOTE_URL)
-    before_letters = st.number_input("Letters before suffix (exact). Leave 0 for any", min_value=0, step=1, value=1)
+    before_letters = st.number_input("Letters before suffix (exact). Leave 0 for any", min_value=0, step=1, value=0)
     st.markdown("---")
     st.header("➕ Add a new word (local)")
     add_w = st.text_input("Add word (single token)")
     if st.button("Add to local list"):
-        if add_w.strip():
+        if not add_w.strip():
+            st.warning("Enter a word.")
+        else:
             CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
             with open(CACHE_PATH, "a", encoding="utf-8") as f:
                 f.write("\n" + add_w.strip())
             st.success(f"Added '{add_w.strip()}' to local cache.")
 
-# Load words
-remote_url = remote_input.strip() or WORDLIST_REMOTE_URL
-words = get_words(remote_url)
+# Load WordNet words
+ensure_wordnet()
+all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
 
 # Layout
 col1, col2 = st.columns([1,2])
 
-# ---------- Left: Suffix Search ----------
 with col1:
-    st.subheader("🔎 Search Suffix")
-    suff = st.text_input("Suffix (e.g. ight)", value="ight")
-    exact_before = st.number_input("Letters before suffix (exact count)", min_value=0, step=1, value=before_letters)
-    matches_exact = find_matches(words, suff, exact_before if exact_before>0 else None)
-    matches_related = [w for w in words if w.lower().endswith(suff.lower())] if suff else []
-
-    st.markdown(f"**Exact matches:** {len(matches_exact)}  —  **Related:** {len(matches_related)}")
+    st.subheader("🔎 Search Words")
+    suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+    matches = find_matches(all_words, suffix_input, before_letters)
+    
+    st.markdown(f"**Matches found:** {len(matches)}")
     st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
-    display_list = matches_exact if matches_exact else matches_related
-    for w in display_list[:5000]:
-        st.markdown(make_highlight_html(w, suff), unsafe_allow_html=True)
+    for w in matches[:5000]:
+        st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ---------- Right: Meanings & Translations ----------
+    st.write(" ")
+    st.markdown("🔁 Quick pick (click to load meanings):")
+    chosen = st.selectbox("Choose a word", [""] + matches[:200])
+
 with col2:
     st.subheader("📘 Meanings & Translations")
-
-    # Quick pick + Excel download side by side
-    if display_list:
-        chosen = st.selectbox("Quick pick (click to load meanings):", [""] + display_list[:200], key="quick_pick")
-        if chosen:
-            syns = wordnet.synsets(chosen)
-            data = []
+    word_to_show = st.text_input("Type or choose a word", value=chosen or "")
+    if word_to_show:
+        st.markdown(f"### 🔤 **{word_to_show}**")
+        syns = wordnet.synsets(word_to_show)
+        if not syns:
+            st.info("No WordNet meanings found for this word.")
+        else:
+            data_rows = []
+            html = "<table style='width:100%; border-collapse:collapse;'>"
+            html += "<tr style='background:#a1c4fd'><th style='padding:8px'>No</th><th>POS</th><th>English</th><th>Tamil</th></tr>"
             for i, syn in enumerate(syns, start=1):
                 pos = POS_MAP.get(syn.pos(), syn.pos())
                 eng = syn.definition()
-                ta = translate_to_tamil(eng) if GoogleTranslator else ""
-                data.append({"No": i, "POS": pos, "English": eng, "Tamil": ta})
-            df = pd.DataFrame(data)
+                ta = translate_to_tamil(eng)
+                eng_wrapped = "<br>".join(textwrap.wrap(eng, WRAP_EN))
+                ta_wrapped = "<br>".join(textwrap.wrap(ta, WRAP_TA)) if ta else ""
+                html += f"<tr><td style='padding:8px;border-bottom:1px solid #eee'>{i}</td>"
+                html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{pos}</td>"
+                html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{eng_wrapped}</td>"
+                html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{ta_wrapped}</td></tr>"
+                data_rows.append({"No": i, "POS": pos, "English": eng, "Tamil": ta})
+            html += "</table>"
+            st.markdown(html, unsafe_allow_html=True)
+
+            # Excel export
             towrite = BytesIO()
+            df_export = pd.DataFrame(data_rows)
             with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                df.to_excel(writer, index=False, sheet_name="Meanings")
-                writer.save()
+                df_export.to_excel(writer, index=False, sheet_name="Meanings")
             towrite.seek(0)
-            st.download_button("📥 Download Excel", towrite, file_name=f"{chosen}_meanings.xlsx", key="excel_download")
+            st.download_button("📥 Download Excel", towrite, file_name=f"{word_to_show}_meanings.xlsx")
 
-            # Show meanings below
-            if not syns:
-                st.info("No WordNet meanings found.")
-            else:
-                rows = []
-                for i, syn in enumerate(syns, start=1):
-                    pos = POS_MAP.get(syn.pos(), syn.pos())
-                    eng = syn.definition()
-                    ta = translate_to_tamil(eng) if GoogleTranslator else ""
-                    eng_w = "<br>".join(textwrap.wrap(eng, WRAP_EN))
-                    ta_w = "<br>".join(textwrap.wrap(ta, WRAP_TA)) if ta else ""
-                    rows.append((str(i), pos, eng_w, ta_w))
-
-                html = "<table style='width:100%; border-collapse:collapse;'>"
-                html += "<tr style='background:#ffe0b2'><th style='padding:8px'>No</th><th>POS</th><th>English</th><th>Tamil</th></tr>"
-                for no,pos,eng_w,ta_w in rows:
-                    html += f"<tr><td style='padding:8px;border-bottom:1px solid #eee'>{no}</td>"
-                    html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{pos}</td>"
-                    html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{eng_w}</td>"
-                    html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{ta_w}</td></tr>"
-                html += "</table>"
-                st.markdown(html, unsafe_allow_html=True)
-    else:
-        st.info("No words to select. Please search for a suffix first.")
-
-# Footer tip
-st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
-
-
+# Footer
+st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and exact letters-before-suffix count to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
