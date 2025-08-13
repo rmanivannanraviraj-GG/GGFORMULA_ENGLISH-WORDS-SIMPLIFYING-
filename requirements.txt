@@ -1,5 +1,6 @@
 streamlit
-deep-translator
-nltk
 pandas
-openpyxl
+nltk
+deep-translator
+xlsxwriter
+requests
