@@ -109,20 +109,41 @@ with col1:
         st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    st.write(" ")
-    st.markdown("🔁 Quick pick (click to load meanings):")
-    chosen = st.selectbox("Choose a word", [""] + matches[:200])
-
 with col2:
-    st.subheader("📘 Meanings & Translations")
-    word_to_show = st.text_input("Type or choose a word", value=chosen or "")
-    if word_to_show:
-        st.markdown(f"### 🔤 **{word_to_show}**")
-        syns = wordnet.synsets(word_to_show)
+    # Quick pick section above Meanings & Translations
+    st.markdown("🔁 Quick pick (click to load meanings):")
+    chosen = st.selectbox("Choose a word", [""] + matches[:200], label_visibility="collapsed")
+    
+    # Header row with download button
+    header_col1, header_col2 = st.columns([1,4])
+    with header_col1:
+        if chosen:
+            towrite = BytesIO()
+            syns = wordnet.synsets(chosen)
+            if syns:
+                data_rows = []
+                for i, syn in enumerate(syns, start=1):
+                    pos = POS_MAP.get(syn.pos(), syn.pos())
+                    eng = syn.definition()
+                    ta = translate_to_tamil(eng)
+                    data_rows.append({"No": i, "POS": pos, "English": eng, "Tamil": ta})
+                
+                df_export = pd.DataFrame(data_rows)
+                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
+                towrite.seek(0)
+                st.download_button("📥 Download Excel", towrite, file_name=f"{chosen}_meanings.xlsx")
+    
+    with header_col2:
+        st.subheader("📘 Meanings & Translations")
+    
+    # Word details display
+    if chosen:
+        st.markdown(f"### 🔤 **{chosen}**")
+        syns = wordnet.synsets(chosen)
         if not syns:
             st.info("No WordNet meanings found for this word.")
         else:
-            data_rows = []
             html = "<table style='width:100%; border-collapse:collapse;'>"
             html += "<tr style='background:#a1c4fd'><th style='padding:8px'>No</th><th>POS</th><th>English</th><th>Tamil</th></tr>"
             for i, syn in enumerate(syns, start=1):
@@ -135,17 +156,8 @@ with col2:
                 html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{pos}</td>"
                 html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{eng_wrapped}</td>"
                 html += f"<td style='padding:8px;border-bottom:1px solid #eee'>{ta_wrapped}</td></tr>"
-                data_rows.append({"No": i, "POS": pos, "English": eng, "Tamil": ta})
             html += "</table>"
             st.markdown(html, unsafe_allow_html=True)
-
-            # Excel export
-            towrite = BytesIO()
-            df_export = pd.DataFrame(data_rows)
-            with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                df_export.to_excel(writer, index=False, sheet_name="Meanings")
-            towrite.seek(0)
-            st.download_button("📥 Download Excel", towrite, file_name=f"{word_to_show}_meanings.xlsx")
 
 # Footer
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and exact letters-before-suffix count to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
