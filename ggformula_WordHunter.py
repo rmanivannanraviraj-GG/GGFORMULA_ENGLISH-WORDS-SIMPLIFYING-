@@ -7,6 +7,94 @@ import requests
 import gzip
 from io import BytesIO
 from pathlib import Path
+import streamlit as st
+import pandas as pd
+import re
+import io
+
+# ---------------- Kids Theme Style ----------------
+st.set_page_config(page_title="Word Hunter", page_icon="🔍", layout="wide")
+st.markdown("""
+    <style>
+    body {
+        background-color: #FFF9E5;
+    }
+    h1, h2, h3 {
+        color: #FF6F61;
+        font-family: 'Comic Sans MS', cursive;
+        text-align: center;
+    }
+    table {
+        font-size: 18px;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    th {
+        background-color: #FFD54F;
+        color: black;
+        padding: 8px;
+    }
+    td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+    .highlight {
+        background-color: yellow;
+        font-weight: bold;
+        color: red;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# ---------------- Header ----------------
+st.title("🔍 Word Hunter - Kids Edition")
+st.write("**வார்த்தைகளை suffix மூலம் தேடி அர்த்தங்களை கற்றுக்கொள்ளுங்கள்!**")
+
+# ---------------- Search Input ----------------
+suffix = st.text_input("Suffix ஐ உள்ளிடவும்:", value="", help="தேட விரும்பும் வார்த்தையின் இறுதி பகுதியை எழுதவும்")
+
+# Sample word list (replace with your DB)
+word_data = [
+    {"word": "running", "pos": "verb", "meaning": "ஓடுவது"},
+    {"word": "singing", "pos": "verb", "meaning": "பாடுவது"},
+    {"word": "playing", "pos": "verb", "meaning": "விளையாடுவது"},
+    {"word": "learning", "pos": "verb", "meaning": "கற்றல்"},
+    {"word": "dancing", "pos": "verb", "meaning": "நடனமாடுவது"}
+]
+
+# ---------------- Search Logic ----------------
+if suffix:
+    filtered_words = []
+    for w in word_data:
+        if w["word"].endswith(suffix):
+            # highlight suffix
+            highlighted_word = re.sub(f"({suffix})$", r"<span class='highlight'>\\1</span>", w["word"])
+            filtered_words.append({
+                "Word": highlighted_word,
+                "POS": w["pos"],
+                "Meaning": w["meaning"]
+            })
+    if filtered_words:
+        st.success(f"மொத்தம் {len(filtered_words)} வார்த்தைகள் கிடைத்துள்ளன!")
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(filtered_words)
+
+        # Column width adjustment
+        st.write(df.to_html(escape=False), unsafe_allow_html=True)
+
+        # Excel Export
+        output = io.BytesIO()
+        pd.DataFrame(filtered_words).to_excel(output, index=False)
+        st.download_button(
+            label="📥 Excel ஆக பதிவிறக்கு",
+            data=output.getvalue(),
+            file_name="word_list.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.warning("வார்த்தைகள் கிடைக்கவில்லை!")
 
 # optional libs
 try:
@@ -253,3 +341,4 @@ with col2:
 
 # Footer / kid styling note
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar. For persistent additions, update the upstream wordlist file (GitHub Release / HF Hub).</div>", unsafe_allow_html=True)
+
