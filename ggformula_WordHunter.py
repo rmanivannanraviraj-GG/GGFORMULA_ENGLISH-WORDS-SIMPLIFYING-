@@ -1,12 +1,34 @@
 import streamlit as st
 import pandas as pd
-from deep_translator import GoogleTranslator
-from nltk.corpus import wordnet
+import textwrap
+import requests
+import gzip
+from pathlib import Path
+from io import BytesIO
+
+# NLP libs
 import nltk
+from nltk.corpus import wordnet
+try:
+    from deep_translator import GoogleTranslator
+except Exception:
+    GoogleTranslator = None
 
-# NLTK data download
-nltk.download('wordnet')
+# Ensure WordNet data available (downloads on first run)
+nltk.download('wordnet', quiet=True)
+nltk.download('omw-1.4', quiet=True)
 
+# ---------------- Config ----------------
+st.set_page_config(page_title="Word Hunter — Simple", page_icon="🔎", layout="wide")
+
+CACHE_DIR = Path("data")
+CACHE_DIR.mkdir(exist_ok=True)
+CACHE_PATH = CACHE_DIR / "wordlist.txt"
+CACHE_GZ_PATH = CACHE_DIR / "wordlist.txt.gz"
+
+POS_MAP = {'n': 'Noun', 'v': 'Verb', 'a': 'Adjective', 's': 'Adjective Satellite', 'r': 'Adverb'}
+WRAP_EN = 80
+WRAP_TA = 100
 # Page config
 st.set_page_config(page_title="Word Hunter - Kids Edition", layout="wide")
 
@@ -54,3 +76,4 @@ else:
 
 # Footer
 st.markdown("<hr><p style='text-align:center; color:#888;'>Made with ❤️ for kids learning</p>", unsafe_allow_html=True)
+
