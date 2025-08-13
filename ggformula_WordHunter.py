@@ -37,42 +37,6 @@ def ensure_wordnet():
         nltk.download("wordnet")
         nltk.download("omw-1.4")
 
-def download_remote_wordlist(url: str, dest: Path):
-    resp = requests.get(url, stream=True, timeout=120)
-    resp.raise_for_status()
-    with st.spinner("Downloading wordlist..."):
-        with open(dest, "wb") as f:
-            f.write(resp.content)
-    return dest
-
-def load_wordlist_from_path(path: Path):
-    if not path.exists():
-        return []
-    if path.suffix == ".gz":
-        with gzip.open(path, "rt", encoding="utf-8", errors="ignore") as f:
-            words = [w.strip() for w in f if w.strip()]
-    else:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            words = [w.strip() for w in f if w.strip()]
-    words = sorted(set(words), key=lambda x: (len(x), x.lower()))
-    return words
-
-@st.cache_data(show_spinner=False)
-def get_words(remote_url: str):
-    if CACHE_PATH.exists() and CACHE_PATH.stat().st_size > 0:
-        return load_wordlist_from_path(CACHE_PATH)
-    if CACHE_GZ_PATH.exists() and CACHE_GZ_PATH.stat().st_size > 0:
-        return load_wordlist_from_path(CACHE_GZ_PATH)
-    if not remote_url:
-        return []
-    dest = CACHE_GZ_PATH if remote_url.endswith(".gz") else CACHE_PATH
-    try:
-        download_remote_wordlist(remote_url, dest)
-    except Exception as e:
-        st.error(f"Failed to download wordlist: {e}")
-        return []
-    return load_wordlist_from_path(dest)
-
 @st.cache_data(show_spinner=False)
 def translate_to_tamil(text: str):
     try:
@@ -85,11 +49,10 @@ def find_matches(words, suffix, before_letters):
     matched = []
     for w in words:
         if w.lower().endswith(suf):
-            if before_letters is None:
+            if before_letters is None or before_letters == 0:
                 matched.append(w)
             else:
-                before_part = w[:-len(suf)]
-                if len(before_part) == before_letters:
+                if len(w) - len(suf) == before_letters:
                     matched.append(w)
     matched.sort(key=len)
     return matched
@@ -204,4 +167,5 @@ with col2:
 
 # Footer tip
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
+
 
