@@ -1,3 +1,5 @@
 streamlit
+deep-translator
+nltk
 pandas
 openpyxl
