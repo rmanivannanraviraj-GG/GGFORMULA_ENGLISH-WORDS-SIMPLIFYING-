@@ -115,7 +115,9 @@ with col1:
 
 with col2:
     st.subheader("📘 Meanings & Translations")
-    word_to_show = st.text_input("Type or choose a word", value=chosen or "")
+    st.markdown("Quick pick")
+    word_to_show = chosen or ""
+    
     if word_to_show:
         st.markdown(f"### 🔤 **{word_to_show}**")
         syns = wordnet.synsets(word_to_show)
