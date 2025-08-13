@@ -1,4 +1,4 @@
-# app_streamlit_suffix_kids_simple.py
+# app_streamlit_suffix_kids_final.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -24,13 +24,15 @@ st.set_page_config(
     page_icon="🧩"
 )
 
-# எளிய வண்ணத் திட்டம்
+# கண்களுக்கு ஓய்வு தரும் வண்ணத் திட்டம்
 COLORS = {
-    'primary': '#3498db',
-    'secondary': '#2ecc71',
-    'accent': '#e74c3c',
-    'background': '#f9f9f9',
-    'text': '#2c3e50'
+    'primary': '#4285F4',  # மென்மையான நீலம்
+    'secondary': '#34A853',  # மென்மையான பச்சை
+    'accent': '#EA4335',  # மென்மையான சிவப்பு
+    'background': '#F8F9FA',  # மிகவும் இலகுவான சாம்பல்
+    'text': '#202124',  # கருமையான எழுத்துக்கள்
+    'highlight': '#FBBC05',  # மென்மையான மஞ்சள்
+    'footer': '#E8EAED'  # மென்மையான அடிக்குறிப்பு பகுதி
 }
 
 # ---------- Helpers ----------
@@ -51,19 +53,22 @@ def find_matches(words, suffix, before_letters):
 # ---------- UI Styling ----------
 st.markdown(f"""
 <style>
-/* எளிமையான மற்றும் வேகமான UI */
+/* எளிமையான மற்றும் கண்களுக்கு ஓய்வு தரும் UI */
 body {{
     background-color: {COLORS['background']};
     font-family: 'Arial', sans-serif;
+    line-height: 1.6;
 }}
 
 .stApp {{
     max-width: 1200px;
     margin: 0 auto;
+    padding-top: 1rem;
 }}
 
 h1, h2, h3 {{
     color: {COLORS['primary']};
+    margin-bottom: 0.5rem !important;
 }}
 
 .stButton>button {{
@@ -73,15 +78,18 @@ h1, h2, h3 {{
     border-radius: 8px;
     padding: 10px 20px;
     font-size: 16px;
+    margin-top: 0.5rem;
 }}
 
 .stButton>button:hover {{
     background-color: #{COLORS['secondary']}dd;
+    color: white;
 }}
 
 .stSelectbox>div>div>select {{
     font-size: 16px;
     padding: 10px;
+    margin-bottom: 0.5rem;
 }}
 
 /* எளிமையான அட்டவணை வடிவமைப்பு */
@@ -89,6 +97,7 @@ table {{
     width: 100%;
     border-collapse: collapse;
     margin: 15px 0;
+    font-size: 15px;
 }}
 
 th {{
@@ -100,11 +109,11 @@ th {{
 
 td {{
     padding: 10px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #e0e0e0;
 }}
 
 tr:nth-child(even) {{
-    background-color: #f2f2f2;
+    background-color: #f5f5f5;
 }}
 
 /* சொல் முன்னிலைப்படுத்தல் */
@@ -112,14 +121,37 @@ tr:nth-child(even) {{
     color: {COLORS['accent']};
     font-weight: bold;
 }}
+
+/* சொற்கள் பட்டியல் */
+.word-list {{
+    font-size: 16px;
+    line-height: 2.0;
+    column-count: 2;
+    column-gap: 20px;
+}}
+
+.word-item {{
+    margin-bottom: 8px;
+    break-inside: avoid;
+}}
+
+/* அடிக்குறிப்பு */
+.footer {{
+    background-color: {COLORS['footer']};
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 30px;
+    font-size: 14px;
+    color: {COLORS['text']};
+}}
 </style>
 """, unsafe_allow_html=True)
 
 # தலைப்பு பகுதி
 st.markdown(f"""
-<div style="text-align:center; padding:20px 0;">
-    <h1 style="color:{COLORS['primary']};">🧩 சொல் விளையாட்டு</h1>
-    <p>சொற்களின் இறுதி எழுத்துகளைக் கண்டுபிடித்து அர்த்தங்களைத் தெரிந்துகொள்ளுங்கள்!</p>
+<div style="text-align:center; padding-bottom:20px;">
+    <h1 style="color:{COLORS['primary']}; margin-bottom:0;">🧩 சொல் விளையாட்டு</h1>
+    <p style="color:{COLORS['text']};">சொற்களின் இறுதி எழுத்துகளைக் கண்டுபிடித்து அர்த்தங்களைத் தெரிந்துகொள்ளுங்கள்!</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -128,7 +160,7 @@ col1, col2 = st.columns([1, 2])
 
 with col1:
     # தேடல் பகுதி
-    st.subheader("🔍 சொற்களைத் தேடு")
+    st.markdown(f"<h3>🔍 சொற்களைத் தேடு</h3>", unsafe_allow_html=True)
     
     suffix_input = st.text_input(
         "இறுதி எழுத்துகளை உள்ளிடவும் (எ.கா. 'ing')", 
@@ -144,18 +176,9 @@ with col1:
         help="0 எனில் எத்தனை இருந்தாலும் பரவாயில்லை"
     )
     
-    # வேகமான தேடலுக்கு progress bar
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    # சொற்களை வேகமாக ஏற்றுகிறது
+    # வேகமான தேடலுக்கு
     with st.spinner("சொற்கள் ஏற்றப்படுகின்றன..."):
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-        progress_bar.progress(100)
-        status_text.success("✅ சொற்கள் தயார்!")
-        time.sleep(0.5)
-        progress_bar.empty()
-        status_text.empty()
     
     # பொருத்தமான சொற்களைக் கண்டறிதல்
     if suffix_input:
@@ -163,18 +186,23 @@ with col1:
             matches = find_matches(all_words, suffix_input, before_letters)
             st.success(f"**கிடைத்த சொற்கள்:** {len(matches)}")
             
-            # சொற்களின் பட்டியல்
-            for w in matches[:300]:  # முதல் 300 சொற்களை மட்டும் காட்டுகிறது
-                if suffix_input.lower() in w.lower():
-                    parts = w.rsplit(suffix_input, 1)
-                    st.markdown(
-                        f"{parts[0]}<span class='highlight'>{suffix_input}</span>" if len(parts) > 1 else w,
-                        unsafe_allow_html=True
-                    )
+            # சொற்களின் பட்டியல் - 2 நெடுவரிசைகளில்
+            if matches:
+                st.markdown('<div class="word-list">', unsafe_allow_html=True)
+                for w in matches[:200]:  # முதல் 200 சொற்களை மட்டும் காட்டுகிறது
+                    if suffix_input.lower() in w.lower():
+                        parts = w.rsplit(suffix_input, 1)
+                        st.markdown(
+                            f'<div class="word-item">'
+                            f"{parts[0]}<span class='highlight'>{suffix_input}</span>" 
+                            f'</div>' if len(parts) > 1 else f'<div class="word-item">{w}</div>',
+                            unsafe_allow_html=True
+                        )
+                st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
     # விரைவான தேர்வு மற்றும் அர்த்தங்கள்
-    st.subheader("📚 அர்த்தங்கள்")
+    st.markdown(f"<h3>📚 அர்த்தங்கள்</h3>", unsafe_allow_html=True)
     
     # தேர்வு பெட்டி மற்றும் டவுன்லோட் பொத்தான்
     col_select, col_download = st.columns([3, 1])
@@ -183,7 +211,8 @@ with col2:
         chosen = st.selectbox(
             "ஒரு சொல்லைத் தேர்ந்தெடுக்கவும்", 
             [""] + (matches[:200] if 'matches' in locals() else []),
-            key="word_select"
+            key="word_select",
+            label_visibility="collapsed"
         )
     
     with col_download:
@@ -223,14 +252,14 @@ with col2:
                 eng = syn.definition()
                 ta = translate_to_tamil(eng)
                 
-                with st.expander(f"அர்த்தம் {i} ({pos})"):
+                with st.expander(f"அர்த்தம் {i} ({pos})", expanded=True if i == 1 else False):
                     st.markdown(f"**ஆங்கிலம்:** {eng}")
                     if ta:
                         st.markdown(f"**தமிழ்:** {ta}")
 
 # அடிக்குறிப்பு
-st.markdown("""
-<div style="margin-top:30px; padding:15px; background:#f0f0f0; border-radius:8px; text-align:center;">
-    <p>💡 உதவி: குறுகிய இறுதி எழுத்துகளை முதலில் முயற்சிக்கவும் (எ.கா 'ing', 'tion')</p>
+st.markdown(f"""
+<div class="footer">
+    <p style="margin:0; color:{COLORS['text']};">💡 உதவி: குறுகிய இறுதி எழுத்துகளை முதலில் முயற்சிக்கவும் (எ.கா 'ing', 'tion')</p>
 </div>
 """, unsafe_allow_html=True)
