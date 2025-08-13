@@ -1,4 +1,4 @@
-# app_streamlit_suffix_simple.py
+# app_streamlit_suffix_pro.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -14,14 +14,13 @@ nltk.download('omw-1.4')
 
 # ---------- CONFIG ----------
 st.set_page_config(
-    page_title="சொல் விளையாட்டு", 
+    page_title="சொல் ஆய்வு கருவி", 
     layout="wide",
-    page_icon="🧒"
+    page_icon="🔍"
 )
 
 POS_MAP = {'n': 'பெயர்ச்சொல்', 'v': 'வினைச்சொல்', 'a': 'பெயரடை', 's': 'பெயரடை', 'r': 'வினையடை'}
-WRAP_EN = 80
-WRAP_TA = 100
+WRAP_LEN = 60  # ஒரு வரியில் அதிகபட்ச எழுத்துகள்
 
 # ---------- Helpers ----------
 @st.cache_data(show_spinner=False)
@@ -35,9 +34,12 @@ def ensure_wordnet():
 @st.cache_data(show_spinner=False)
 def translate_to_tamil(text: str):
     try:
+        # Length check for Google Translate API
+        if len(text) > 5000:
+            return "மொழிபெயர்ப்பு நீளம் அதிகம்"
         return GoogleTranslator(source='auto', target='ta').translate(text)
-    except Exception:
-        return ""
+    except Exception as e:
+        return f"மொழிபெயர்ப்பு பிழை: {str(e)}"
 
 def find_matches(words, suffix, before_letters):
     suf = suffix.lower()
@@ -60,96 +62,95 @@ def make_highlight_html(word, suf):
     else:
         return word
 
+def wrap_text(text, width):
+    """உரையை வரிகளாக மடிக்கும் செயல்பாடு"""
+    if not text:
+        return ""
+    return "<br>".join(textwrap.wrap(text, width=width))
+
 # ---------- UI Styling ----------
 st.markdown("""
 <style>
-/* எளிமையான மற்றும் தெளிவான வடிவமைப்பு */
-body {
-    font-family: 'Arial', sans-serif;
-    line-height: 1.6;
-}
-
-h1, h2, h3 {
-    color: #2d3436;
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-}
-
-/* பொத்தான் வடிவமைப்பு */
-.stButton>button {
-    background-color: #00b894;
-    color: white;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 14px;
-    border: none;
-}
-
-.stButton>button:hover {
-    background-color: #55efc4;
-}
-
-/* தெரிவு பெட்டி வடிவமைப்பு */
-.stSelectbox>div>div>select {
-    font-size: 14px;
-    padding: 8px;
-}
-
-/* அட்டவணை வடிவமைப்பு */
-table {
+/* மேம்பட்ட அட்டவணை வடிவமைப்பு */
+.meaning-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 12px 0;
+    margin: 16px 0;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-th {
-    background-color: #74b9ff;
+.meaning-table th {
+    background-color: #4a89dc;
     color: white;
-    padding: 10px;
+    padding: 12px;
     text-align: left;
+    font-weight: 600;
 }
 
-td {
-    padding: 10px;
-    border-bottom: 1px solid #dfe6e9;
+.meaning-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: top;
 }
 
-tr:nth-child(even) {
-    background-color: #f5f5f5;
+.meaning-table tr:nth-child(even) {
+    background-color: #f8f9fa;
 }
 
-/* உள்ளீடு பெட்டி வடிவமைப்பு */
+.meaning-table tr:hover {
+    background-color: #f1f5fd;
+}
+
+/* பொது வடிவமைப்பு */
+.definition-block {
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+
+.tamil-def {
+    color: #2d572c;
+    font-style: italic;
+}
+
+/* உள்ளீடு பெட்டிகள் */
 .stTextInput>div>div>input {
-    padding: 8px;
+    padding: 10px;
     font-size: 14px;
+}
+
+/* தலைப்புகள் */
+h2, h3 {
+    color: #2c3e50;
+    margin-top: 1.2em;
+    margin-bottom: 0.8em;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # தலைப்பு பகுதி
-st.markdown("<h1 style='text-align:center; color:#2d3436;'>🧒 சொல் விளையாட்டு - Suffix Learner</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#636e72;'>சொற்களின் இறுதிப் பகுதிகளைக் கண்டுபிடித்து, அர்த்தங்களைத் தெரிந்துகொள்ளுங்கள்!</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:#2c3e50; margin-bottom:0.5em;'>🔍 சொல் ஆய்வு கருவி</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#7f8c8d; margin-top:0;'>சொற்களின் அர்த்தங்களையும் மொழிபெயர்ப்புகளையும் ஆராயுங்கள்</p>", unsafe_allow_html=True)
 
 # பக்கப்பட்டை (Sidebar)
 with st.sidebar:
     st.header("⚙️ அமைப்புகள்")
-    
     before_letters = st.number_input(
-        "இறுதிப் பகுதிக்கு முன் எத்தனை எழுத்துகள்?", 
+        "இறுதி எழுத்துகளுக்கு முன் உள்ள எழுத்துகள்", 
         min_value=0, 
         step=1, 
         value=0,
-        help="0 எனில் எத்தனை எழுத்துகள் இருந்தாலும் பரவாயில்லை"
+        help="சரியான எழுத்து எண்ணிக்கையை குறிப்பிடவும் (0 என்பது எந்த எண்ணையும்)"
     )
     
     st.markdown("---")
     st.header("➕ புதிய சொல் சேர்க்க")
-    add_w = st.text_input("சொல்லை இங்கே எழுதவும்", key="add_word")
+    add_w = st.text_input("சொல்லை இங்கு உள்ளிடுக", key="add_word")
     if st.button("சேர்க்க"):
         if not add_w.strip():
-            st.warning("ஒரு சொல்லை எழுதவும்.")
+            st.warning("தயவு செய்து ஒரு சொல்லை உள்ளிடவும்")
         else:
-            st.success(f"'{add_w.strip()}' சொல் சேர்க்கப்பட்டது!")
+            st.success(f"'{add_w.strip()}' சேர்க்கப்பட்டது!")
 
 # WordNet சொற்களை ஏற்றுகிறது
 ensure_wordnet()
@@ -159,24 +160,24 @@ all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lowe
 col1, col2 = st.columns([1, 2])
 
 with col1:
-    st.header("🔍 சொற்களைத் தேடு")
+    st.header("சொல் தேடல்")
     suffix_input = st.text_input(
-        "சொல்லின் இறுதிப் பகுதி (எ.கா. 'ing')", 
-        value="ing",
+        "இறுதி எழுத்துத் தொடர் (எ.கா. 'tion')", 
+        value="tion",
         key="suffix_input"
     )
     
     matches = find_matches(all_words, suffix_input, before_letters)
-    st.markdown(f"**கிடைத்த சொற்கள்:** {len(matches)}")
+    st.markdown(f"**பொருந்திய சொற்கள்:** {len(matches)}")
     
     # சொல் பட்டியல்
-    st.markdown("<div style='max-height:500px; overflow:auto; margin-top:10px;'>", unsafe_allow_html=True)
-    for w in matches[:5000]:
-        st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+    st.markdown("<div style='max-height:500px; overflow-y:auto; margin-top:12px; border:1px solid #eee; padding:8px; border-radius:4px;'>", unsafe_allow_html=True)
+    for w in matches[:1000]:  # செயல்திறனுக்காக 1000 சொற்கள் மட்டும்
+        st.markdown(f"<div style='padding:4px 0;'>{make_highlight_html(w, suffix_input)}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
-    st.header("🔁 விரைவான தேர்வு")
+    st.header("சொல் விவரங்கள்")
     chosen = st.selectbox(
         "ஒரு சொல்லைத் தேர்ந்தெடுக்கவும்", 
         [""] + matches[:200],
@@ -197,54 +198,65 @@ with col2:
                     pos = POS_MAP.get(syn.pos(), syn.pos())
                     eng = syn.definition()
                     ta = translate_to_tamil(eng)
-                    data_rows.append({"எண்": i, "பகுபாடு": pos, "ஆங்கிலம்": eng, "தமிழ்": ta})
+                    data_rows.append({
+                        "எண்": i, 
+                        "பகுபாடு": pos, 
+                        "ஆங்கிலம்": eng, 
+                        "தமிழ்": ta
+                    })
                 
                 df_export = pd.DataFrame(data_rows)
                 with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
                     df_export.to_excel(writer, index=False, sheet_name="Meanings")
                 towrite.seek(0)
                 st.download_button(
-                    "📝 Excel-ஆக சேமிக்க", 
+                    "📊 Excel-ஆக எடுக்க", 
                     towrite, 
-                    file_name=f"{chosen}_meanings.xlsx"
+                    file_name=f"{chosen}_meanings.xlsx",
+                    help="இந்த சொல்லின் அர்த்தங்களை Excel கோப்பாக சேமிக்க"
                 )
         
-        st.header(f"📖 {chosen} - அர்த்தங்கள்")
+        st.subheader(f"'{chosen}' - விரிவான அர்த்தங்கள்")
         
         syns = wordnet.synsets(chosen)
         if not syns:
-            st.info("இந்த சொல்லுக்கு அர்த்தங்கள் கிடைக்கவில்லை.")
+            st.info("இந்த சொல்லுக்கு வரையறைகள் கிடைக்கவில்லை")
         else:
-            # அர்த்தங்கள் அட்டவணை
+            # மேம்பட்ட அர்த்தங்கள் அட்டவணை
             html = """
-            <table>
-                <tr>
-                    <th>எண்</th>
-                    <th>பகுபாடு</th>
-                    <th>ஆங்கிலம்</th>
-                    <th>தமிழ்</th>
-                </tr>
+            <table class="meaning-table">
+                <thead>
+                    <tr>
+                        <th style="width:5%">எண்</th>
+                        <th style="width:15%">சொல் வகை</th>
+                        <th style="width:40%">ஆங்கில வரையறை</th>
+                        <th style="width:40%">தமிழ் மொழிபெயர்ப்பு</th>
+                    </tr>
+                </thead>
+                <tbody>
             """
             
             for i, syn in enumerate(syns, start=1):
                 pos = POS_MAP.get(syn.pos(), syn.pos())
                 eng = syn.definition()
                 ta = translate_to_tamil(eng)
-                eng_wrapped = "<br>".join(textwrap.wrap(eng, WRAP_EN))
-                ta_wrapped = "<br>".join(textwrap.wrap(ta, WRAP_TA)) if ta else ""
+                
+                # உரையை வரிகளாக மடிக்கும் பகுதி
+                eng_wrapped = wrap_text(eng, WRAP_LEN)
+                ta_wrapped = wrap_text(ta, WRAP_LEN) if ta else "மொழிபெயர்ப்பு இல்லை"
                 
                 html += f"""
                 <tr>
                     <td>{i}</td>
                     <td>{pos}</td>
-                    <td>{eng_wrapped}</td>
-                    <td>{ta_wrapped}</td>
+                    <td><div class="definition-block">{eng_wrapped}</div></td>
+                    <td><div class="definition-block tamil-def">{ta_wrapped}</div></td>
                 </tr>
                 """
             
-            html += "</table>"
+            html += "</tbody></table>"
             st.markdown(html, unsafe_allow_html=True)
 
 # அடிக்குறிப்பு
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#636e72;'>💡 உதவி: குறுகிய இறுதிப்பகுதிகளை (எ.கா. 'ing') பயன்படுத்தி சொற்களை எளிதாக கண்டறியலாம்</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#7f8c8d; font-size:0.9em;'>💡 உதவி: துல்லியமான முடிவுகளுக்கு குறுகிய இறுதி எழுத்துத் தொடர்களை பயன்படுத்தவும்</p>", unsafe_allow_html=True)
