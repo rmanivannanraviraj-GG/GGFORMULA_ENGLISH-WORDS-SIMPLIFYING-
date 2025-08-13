@@ -20,7 +20,6 @@ st.title("📚 Word Hunter - English to Tamil Dictionary")
 
 # ---------- CONFIG ----------
 st.set_page_config(page_title="Suffix Learner", layout="wide")
-WORDLIST_REMOTE_URL = "https://drive.google.com/uc?export=download&id=<your_file_id>"  # Replace with your Google Drive file ID
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
 CACHE_PATH = CACHE_DIR / "wordlist.txt"
@@ -29,7 +28,6 @@ CACHE_GZ_PATH = CACHE_DIR / "wordlist.txt.gz"
 POS_MAP = {'n': 'Noun', 'v': 'Verb', 'a': 'Adjective', 's': 'Adjective Satellite', 'r': 'Adverb'}
 WRAP_EN = 80
 WRAP_TA = 100
-
 # ---------- Helpers ----------
 @st.cache_data(show_spinner=False)
 def ensure_wordnet():
@@ -206,3 +204,4 @@ with col2:
 
 # Footer tip
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
+
