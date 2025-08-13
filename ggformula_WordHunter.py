@@ -7,6 +7,45 @@ import requests
 import gzip
 from io import BytesIO
 from pathlib import Path
+import streamlit as st
+import pandas as pd
+from deep_translator import GoogleTranslator
+from nltk.corpus import wordnet
+import nltk
+
+# 🔹 NLTK Data Download
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+
+# Title
+st.title("📚 Word Hunter - English to Tamil Dictionary")
+
+# Input
+suffix = st.text_input("Enter a word suffix:")
+
+# Search & Display
+if suffix:
+    words = [w for w in set(wordnet.all_lemma_names()) if w.endswith(suffix)]
+    st.write(f"### {len(words)} words found")
+    st.markdown("---")
+
+    data = []
+    for w in words:
+        synsets = wordnet.synsets(w)
+        pos = set(s.pos() for s in synsets)
+        meaning_en = "; ".join(set(s.definition() for s in synsets))
+        meaning_ta = GoogleTranslator(source='en', target='ta').translate(meaning_en) if meaning_en else ""
+        data.append([w, ", ".join(pos), meaning_en, meaning_ta])
+
+    # Table with increased column width
+    df = pd.DataFrame(data, columns=["Word", "POS", "Meaning (EN)", "Meaning (TA)"])
+    st.dataframe(df, use_container_width=True)
+
+    # Export to Excel
+    excel_file = "word_results.xlsx"
+    df.to_excel(excel_file, index=False)
+    with open(excel_file, "rb") as f:
+        st.download_button("📥 Download Excel", f, file_name=excel_file)
 
 # optional libs
 try:
@@ -253,3 +292,4 @@ with col2:
 
 # Footer / kid styling note
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and 'Letters before suffix' to narrow results. Add words using the sidebar. For persistent additions, update the upstream wordlist file (GitHub Release / HF Hub).</div>", unsafe_allow_html=True)
+
