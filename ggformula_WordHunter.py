@@ -1,4 +1,4 @@
-# app_streamlit_suffix_ready_with_count.py
+# app_streamlit_suffix_ready_with_count_nosource.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -67,17 +67,6 @@ st.write(" ")
 with st.sidebar:
     st.header("🔧 Settings")
     before_letters = st.number_input("Letters before suffix (exact). Leave 0 for any", min_value=0, step=1, value=0)
-    st.markdown("---")
-    st.header("➕ Add a new word (local)")
-    add_w = st.text_input("Add word (single token)")
-    if st.button("Add to local list"):
-        if not add_w.strip():
-            st.warning("Enter a word.")
-        else:
-            CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(CACHE_PATH, "a", encoding="utf-8") as f:
-                f.write("\n" + add_w.strip())
-            st.success(f"Added '{add_w.strip()}' to local cache.")
 
 # Load WordNet words
 all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
@@ -90,7 +79,7 @@ with col1:
     suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
     matches = find_matches(all_words, suffix_input, before_letters)
 
-    # ✅ New: Show total count
+    # ✅ Show total count
     st.markdown(f"**Total Words Found:** {len(matches)}")
 
     # Word list display
@@ -146,4 +135,4 @@ with col2:
             html += "</table>"
             st.markdown(html, unsafe_allow_html=True)
 
-st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and exact letters-before-suffix count to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and exact letters-before-suffix count to narrow results.</div>", unsafe_allow_html=True)
