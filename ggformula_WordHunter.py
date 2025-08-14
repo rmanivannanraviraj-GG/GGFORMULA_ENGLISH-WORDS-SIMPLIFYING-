@@ -1,4 +1,4 @@
-# app_streamlit_suffix_ready_fixed.py
+# app_streamlit_suffix_ready_with_count.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -8,7 +8,7 @@ from deep_translator import GoogleTranslator
 from nltk.corpus import wordnet
 import nltk
 
-# 🔹 NLTK Data Download
+# NLTK Data Download
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
@@ -35,7 +35,7 @@ def find_matches(words, suffix, before_letters):
     matched = []
     for w in words:
         if w.lower().endswith(suf):
-            if before_letters is None or before_letters == 0:
+            if before_letters == 0:
                 matched.append(w)
             else:
                 if len(w) - len(suf) == before_letters:
@@ -90,18 +90,19 @@ with col1:
     suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
     matches = find_matches(all_words, suffix_input, before_letters)
 
-    # Word list display (No count, only matches)
+    # ✅ New: Show total count
+    st.markdown(f"**Total Words Found:** {len(matches)}")
+
+    # Word list display
     st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
     for w in matches[:5000]:
         st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
-    # Quick pick section above Meanings & Translations
     st.markdown("🔁 Quick pick (click to load meanings):")
     chosen = st.selectbox("Choose a word", [""] + matches[:200], label_visibility="collapsed")
     
-    # Header row with download button
     header_col1, header_col2 = st.columns([1,4])
     with header_col1:
         if chosen:
@@ -124,7 +125,6 @@ with col2:
     with header_col2:
         st.subheader("📘 Meanings & Translations")
     
-    # Word details display
     if chosen:
         st.markdown(f"### 🔤 **{chosen}**")
         syns = wordnet.synsets(chosen)
@@ -146,5 +146,4 @@ with col2:
             html += "</table>"
             st.markdown(html, unsafe_allow_html=True)
 
-# Footer
 st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and exact letters-before-suffix count to narrow results. Add words using the sidebar.</div>", unsafe_allow_html=True)
