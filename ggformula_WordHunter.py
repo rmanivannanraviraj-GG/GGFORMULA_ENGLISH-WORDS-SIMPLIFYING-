@@ -1,4 +1,4 @@
-# app_streamlit_suffix_ready_with_count_nosource.py
+# app_streamlit_suffix_ready_with_count_nosource_tamil.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -13,12 +13,12 @@ nltk.download('wordnet')
 nltk.download('omw-1.4')
 
 # ---------- CONFIG ----------
-st.set_page_config(page_title="Suffix Learner", layout="wide")
+st.set_page_config(page_title="சொல் இறுதி பயிற்சி", layout="wide")
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
 CACHE_PATH = CACHE_DIR / "wordlist.txt"
 
-POS_MAP = {'n': 'Noun', 'v': 'Verb', 'a': 'Adjective', 's': 'Adjective Satellite', 'r': 'Adverb'}
+POS_MAP = {'n': 'பெயர்ச்சொல்', 'v': 'வினைச்சொல்', 'a': 'விளிப்பெயர்', 's': 'விளிப்பெயர் (சாட்டிலைட்)', 'r': 'வினையடை'}
 WRAP_EN = 80
 WRAP_TA = 100
 
@@ -60,13 +60,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='app-header'><h1 style='margin:0'>🎈 Suffix Learner — Fun with Words</h1><small>Find words by suffix, see English meanings & Tamil translations</small></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>🎈 சொல் இறுதி பயிற்சி — வார்த்தைகளுடன் விளையாடு</h1><small>இறுதிச் சொல் அடிப்படையில் வார்த்தைகளைத் தேடவும், ஆங்கில அர்த்தங்கள் & தமிழ் மொழிபெயர்ப்பைப் பார்க்கவும்</small></div>", unsafe_allow_html=True)
 st.write(" ")
 
 # Sidebar
 with st.sidebar:
-    st.header("🔧 Settings")
-    before_letters = st.number_input("Letters before suffix (exact). Leave 0 for any", min_value=0, step=1, value=0)
+    st.header("🔧 அமைப்புகள்")
+    before_letters = st.number_input("இறுதிக்கு முன் உள்ள எழுத்துகள் (சரியாக). 0 என்றால் எந்தவொரு எண்ணும் பரவாயில்லை", min_value=0, step=1, value=0)
 
 # Load WordNet words
 all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
@@ -75,12 +75,12 @@ all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lowe
 col1, col2 = st.columns([1,2])
 
 with col1:
-    st.subheader("🔎 Search Words")
-    suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+    st.subheader("🔎 சொற்களைத் தேடு")
+    suffix_input = st.text_input("இறுதி (உதா: 'ight')", value="ight")
     matches = find_matches(all_words, suffix_input, before_letters)
 
     # ✅ Show total count
-    st.markdown(f"**Total Words Found:** {len(matches)}")
+    st.markdown(f"**மொத்தமாக கண்ட சொற்கள்:** {len(matches)}")
 
     # Word list display
     st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
@@ -89,8 +89,8 @@ with col1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
-    st.markdown("🔁 Quick pick (click to load meanings):")
-    chosen = st.selectbox("Choose a word", [""] + matches[:200], label_visibility="collapsed")
+    st.markdown("🔁 விரைவாக தேர்வு செய் (அர்த்தங்களைப் பார்க்க கிளிக் செய்க):")
+    chosen = st.selectbox("ஒரு சொல்லைத் தேர்வு செய்க", [""] + matches[:200], label_visibility="collapsed")
     
     header_col1, header_col2 = st.columns([1,4])
     with header_col1:
@@ -103,25 +103,25 @@ with col2:
                     pos = POS_MAP.get(syn.pos(), syn.pos())
                     eng = syn.definition()
                     ta = translate_to_tamil(eng)
-                    data_rows.append({"No": i, "POS": pos, "English": eng, "Tamil": ta})
+                    data_rows.append({"எண்": i, "சொல் வகை": pos, "ஆங்கிலம்": eng, "தமிழ்": ta})
                 
                 df_export = pd.DataFrame(data_rows)
                 with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
+                    df_export.to_excel(writer, index=False, sheet_name="அர்த்தங்கள்")
                 towrite.seek(0)
-                st.download_button("📥 Download Excel", towrite, file_name=f"{chosen}_meanings.xlsx")
+                st.download_button("📥 எக்செல் பதிவிறக்கு", towrite, file_name=f"{chosen}_meanings.xlsx")
     
     with header_col2:
-        st.subheader("📘 Meanings & Translations")
+        st.subheader("📘 அர்த்தங்கள் & மொழிபெயர்ப்பு")
     
     if chosen:
         st.markdown(f"### 🔤 **{chosen}**")
         syns = wordnet.synsets(chosen)
         if not syns:
-            st.info("No WordNet meanings found for this word.")
+            st.info("இந்த சொல்லுக்கு WordNet அர்த்தங்கள் கிடைக்கவில்லை.")
         else:
             html = "<table style='width:100%; border-collapse:collapse;'>"
-            html += "<tr style='background:#a1c4fd'><th style='padding:8px'>No</th><th>POS</th><th>English</th><th>Tamil</th></tr>"
+            html += "<tr style='background:#a1c4fd'><th style='padding:8px'>எண்</th><th>சொல் வகை</th><th>ஆங்கிலம்</th><th>தமிழ்</th></tr>"
             for i, syn in enumerate(syns, start=1):
                 pos = POS_MAP.get(syn.pos(), syn.pos())
                 eng = syn.definition()
@@ -135,4 +135,4 @@ with col2:
             html += "</table>"
             st.markdown(html, unsafe_allow_html=True)
 
-st.markdown("<div style='margin-top:12px; color:#555'>Tip: Use short suffixes (like 'ight') and exact letters-before-suffix count to narrow results.</div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top:12px; color:#555'>குறிப்பு: குறுகிய இறுதிச் சொற்களை (உதா: 'ight') மற்றும் துல்லியமான எழுத்துகளின் எண்ணிக்கையை பயன்படுத்தி முடிவுகளை குறைக்கவும்.</div>", unsafe_allow_html=True)
