@@ -13,6 +13,7 @@ Run:  streamlit run app_streamlit_suffix_full_ui.py
 Install: pip install streamlit pandas nltk xlsxwriter deep-translator
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -73,8 +74,8 @@ def translate_to_tamil(text: str) -> str:
 def append_word_to_file(path: Path, word: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('a', encoding='utf-8') as f:
-        f.write("
-" + word.strip())
+        # FIX: properly terminated string literal for newline prefix
+        f.write("\n" + word.strip())
 
 def get_wordnet_meanings_for_table(word: str):
     syns = wordnet.synsets(word)
@@ -251,3 +252,44 @@ with col2:
 
 # Footer tip
 st.markdown("<div class='small-muted' style='margin-top:10px'>Tip: Short suffixes (ex: 'ing', 'ight') + exact letters-before-suffix help you narrow results. Upload your own wordlist.</div>", unsafe_allow_html=True)
+
+
+# ---------------------------
+# Lightweight self-tests (run only when RUN_TESTS=1)
+# ---------------------------
+
+def _run_self_tests():
+    sample_words = ["light", "night", "flight", "cat"]
+
+    # 1) suffix filter only (before=0 => any)
+    m_any = find_matches(sample_words, "ight", 0)
+    assert set(m_any) == {"light", "night", "flight"}
+
+    # 2) before_letters = 1 -> only 5-letter words ending with ight
+    m_b1 = find_matches(sample_words, "ight", 1)
+    assert set(m_b1) == {"light", "night"}
+
+    # 3) before_letters = 2 -> only 6-letter words ending with ight
+    m_b2 = find_matches(sample_words, "ight", 2)
+    assert set(m_b2) == {"flight"}
+
+    # 4) empty suffix -> returns everything, sorted by length
+    m_empty = find_matches(sample_words, "", 0)
+    assert len(m_empty) == 4 and "cat" in m_empty
+
+    # 5) highlight HTML contains expected spans
+    html = make_highlight_html("light", "ight")
+    assert "w-suffix" in html and "w-prefix" in html and ">l<" not in html  # prefix should be 'l'
+
+    # 6) Excel export returns non-empty bytes
+    df = pd.DataFrame([{"No": 1, "POS": "Noun", "English": "test", "Tamil": "சோதனை"}])
+    x = df_to_excel_bytes(df)
+    assert isinstance(x, (bytes, bytearray)) and len(x) > 100
+
+    # 7) translate_to_tamil should be robust even without GoogleTranslator
+    out = translate_to_tamil("test")
+    assert isinstance(out, str)
+
+if __name__ == "__main__" and os.environ.get("RUN_TESTS") == "1":
+    _run_self_tests()
+    print("Self-tests passed ✅")
