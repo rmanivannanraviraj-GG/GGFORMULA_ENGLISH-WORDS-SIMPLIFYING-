@@ -1,4 +1,4 @@
-# app_streamlit_suffix_kids_enhanced.py
+# app_streamlit_suffix_kids_final.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -24,18 +24,19 @@ st.set_page_config(
     page_icon="🌈"
 )
 
-# குழந்தைகளுக்கான வண்ணத் திட்டம்
+# குழந்தைகளுக்கான புதிய வண்ணத் திட்டம்
 COLORS = {
     'primary': '#4285F4',  # மென்மையான நீலம்
     'secondary': '#34A853',  # மென்மையான பச்சை
     'accent': '#EA4335',  # மென்மையான சிவப்பு
     'background': '#F8F9FA',  # மிகவும் இலகுவான சாம்பல்
-    'text': '#FFFFFF',  # கருமையான எழுத்துக்கள்
+    'text': '#FFFFFF',  # வெள்ளை எழுத்துக்கள்
     'highlight': '#FBBC05',  # மென்மையான மஞ்சள்
     'footer': '#E8EAED',  # மென்மையான அடிக்குறிப்பு பகுதி
-    'card': '#34A853',  # மென்மையான சிவப்பு அட்டைகள்
+    'card': '#EA4335',  # மென்மையான சிவப்பு அட்டைகள்
     'border': '#DADCE0'  # எல்லைக்கோடுகள்
 }
+
 # ---------- Helpers ----------
 @st.cache_data(show_spinner=False)
 def translate_to_tamil(text: str):
@@ -59,17 +60,12 @@ def get_related_words(synset):
         'உதாரணங்கள்': []
     }
     
-    # ஒத்த பொருள் (Synonyms)
     for lemma in synset.lemmas():
         if lemma.name() != synset.name().split('.')[0]:
             related['ஒத்த பொருள்'].append(lemma.name())
-    
-    # எதிர் பொருள் (Antonyms)
-    for lemma in synset.lemmas():
         for antonym in lemma.antonyms():
             related['எதிர் பொருள்'].append(antonym.name())
     
-    # உதாரணங்கள் (Examples)
     if synset.examples():
         related['உதாரணங்கள்'] = synset.examples()
     
@@ -78,7 +74,7 @@ def get_related_words(synset):
 # ---------- UI Styling ----------
 st.markdown(f"""
 <style>
-/* குழந்தைகளுக்கான வண்ணமயமான UI */
+/* குழந்தைகளுக்கான புதிய வண்ணமயமான UI */
 body {{
     background-color: {COLORS['background']};
     font-family: 'Comic Sans MS', cursive, sans-serif;
@@ -163,13 +159,11 @@ tr:nth-child(even) {{
 .word-list {{
     font-size: 17px;
     line-height: 2.2;
-    column-count: 2;
-    column-gap: 25px;
+    column-count: 1;
 }}
 
 .word-item {{
     margin-bottom: 10px;
-    break-inside: avoid;
     padding: 8px;
     border-radius: 8px;
     transition: all 0.2s;
@@ -182,6 +176,7 @@ tr:nth-child(even) {{
 /* அட்டைகள் */
 .card {{
     background-color: {COLORS['card']};
+    color: {COLORS['text']};
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 20px;
@@ -201,19 +196,10 @@ tr:nth-child(even) {{
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }}
 
-/* புதிய சொல் சேர்க்கும் பகுதி */
-.add-word-card {{
-    background-color: {COLORS['card']};
-    border-radius: 16px;
-    padding: 20px;
-    margin-top: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    border: 2px dashed {COLORS['primary']}40;
-}}
-
 /* தொடர்புடைய சொற்கள் அட்டை */
 .related-words-card {{
     background-color: {COLORS['card']};
+    color: {COLORS['text']};
     border-radius: 12px;
     padding: 15px;
     margin-top: 15px;
@@ -226,6 +212,23 @@ tr:nth-child(even) {{
     background-color: {COLORS['highlight']}15;
     border-radius: 8px;
     display: inline-block;
+    color: {COLORS['text']};
+}}
+
+/* மேல் பட்டை */
+.top-bar {{
+    background-color: {COLORS['primary']};
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    color: white;
+}}
+
+.search-row {{
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
 }}
 
 /* முன்னேற்ற பட்டை */
@@ -239,33 +242,63 @@ tr:nth-child(even) {{
 st.markdown(f"""
 <div style="text-align:center; padding-bottom:20px;">
     <h1 style="color:{COLORS['primary']}; margin-bottom:10px;">🌈 சொல் விளையாட்டு</h1>
-    <p style="color:{COLORS['text']}; font-size:18px;">சொற்களின் இரகசியங்களைக் கண்டுபிடிப்போம்!</p>
+    <p style="color:{COLORS['text']}; font-size:18px; background-color:{COLORS['primary']}; padding:10px; border-radius:8px;">சொற்களின் இரகசியங்களைக் கண்டுபிடிப்போம்!</p>
 </div>
 """, unsafe_allow_html=True)
+
+# புதிய சொல் சேர்க்கும் பகுதி (மேல் பகுதியில்)
+with st.container():
+    st.markdown(f"""
+    <div class="top-bar">
+        <h3 style="margin:0; color:white;">புதிய சொல் சேர்க்க</h3>
+    </div>
+    <div class="card">
+    """, unsafe_allow_html=True)
+    
+    add_col1, add_col2 = st.columns([3, 1])
+    with add_col1:
+        add_w = st.text_input("புதிய சொல்லை இங்கே எழுதவும்", key="add_word")
+    with add_col2:
+        if st.button("சேர்க்க", key="add_button"):
+            if not add_w.strip():
+                st.warning("ஒரு சொல்லை எழுதவும்.")
+            else:
+                CACHE_PATH = Path("data/wordlist.txt")
+                CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+                with open(CACHE_PATH, "a", encoding="utf-8") as f:
+                    f.write("\n" + add_w.strip())
+                st.success(f"'{add_w.strip()}' சொல் வெற்றிகரமாக சேர்க்கப்பட்டது!")
+                time.sleep(1)
+                st.rerun()
+    
+    st.markdown("</div>", unsafe_allow_html=True)  # card close
 
 # முக்கிய பக்க வடிவமைப்பு
 col1, col2 = st.columns([1, 2])
 
 with col1:
-    # தேடல் பகுதி
+    # தேடல் பகுதி - ஒரே வரிசையில்
     with st.container():
         st.markdown(f"""
         <div class="card">
-            <h3>🔍 சொற்களைத் தேடு</h3>
+            <div class="search-row">
+                <h3 style="margin:0;">🔍 சொற்களைத் தேடு</h3>
+            </div>
         """, unsafe_allow_html=True)
         
         suffix_input = st.text_input(
-            "இறுதி எழுத்துகளை உள்ளிடவும் (எ.கா. 'ing')", 
+            "இறுதி எழுத்துகள்", 
             value="ing",
-            key="suffix_input"
+            key="suffix_input",
+            help="எ.கா. 'ing'"
         )
         
         before_letters = st.number_input(
-            "இறுதி எழுத்துகளுக்கு முன் எத்தனை எழுத்துகள்?", 
+            "முன் எழுத்துகள்", 
             min_value=0, 
             step=1, 
             value=0,
-            help="0 எனில் எத்தனை இருந்தாலும் பரவாயில்லை"
+            help="இறுதி எழுத்துகளுக்கு முன் எத்தனை எழுத்துகள்?"
         )
         
         # வேகமான தேடலுக்கு
@@ -278,10 +311,10 @@ with col1:
                 matches = find_matches(all_words, suffix_input, before_letters)
                 st.success(f"**கிடைத்த சொற்கள்:** {len(matches)}")
                 
-                # சொற்களின் பட்டியல் - 2 நெடுவரிசைகளில்
+                # சொற்களின் பட்டியல்
                 if matches:
                     st.markdown('<div class="word-list">', unsafe_allow_html=True)
-                    for w in matches[:300]:  # முதல் 300 சொற்களை மட்டும் காட்டுகிறது
+                    for w in matches[:300]:
                         if suffix_input.lower() in w.lower():
                             parts = w.rsplit(suffix_input, 1)
                             st.markdown(
@@ -292,39 +325,46 @@ with col1:
                             )
                     st.markdown('</div>', unsafe_allow_html=True)
         
-        # புதிய சொல் சேர்க்கும் பகுதி
-        st.markdown(f"""
-        <div class="add-word-card">
-            <h4>➕ புதிய சொல் சேர்க்க</h4>
-            <p>உங்களுக்குத் தெரிந்த புதிய சொல்லைச் சேர்க்கவும்</p>
-        """, unsafe_allow_html=True)
-        
-        add_w = st.text_input("சொல்லை இங்கே எழுதவும்", key="add_word")
-        if st.button("சொல்லைச் சேர்க்க"):
-            if not add_w.strip():
-                st.warning("ஒரு சொல்லை எழுதவும்.")
-            else:
-                CACHE_PATH = Path("data/wordlist.txt")
-                CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-                with open(CACHE_PATH, "a", encoding="utf-8") as f:
-                    f.write("\n" + add_w.strip())
-                st.success(f"'{add_w.strip()}' சொல் வெற்றிகரமாக சேர்க்கப்பட்டது!")
-                time.sleep(1)
-                st.rerun()
-        
-        st.markdown("</div>", unsafe_allow_html=True)  # add-word-card close
         st.markdown("</div>", unsafe_allow_html=True)  # card close
 
+    # தொடர்புடைய சொற்கள் பகுதி (இடது பக்கத்தில்)
+    if 'chosen' in locals() and chosen:
+        with st.container():
+            st.markdown(f"""
+            <div class="card">
+                <h3>🔗 தொடர்புடைய சொற்கள்</h3>
+            """, unsafe_allow_html=True)
+            
+            syns = wordnet.synsets(chosen)
+            if syns:
+                related_words = get_related_words(syns[0])  # முதல் பொருளின் தொடர்புடைய சொற்கள்
+                
+                if related_words['ஒத்த பொருள்']:
+                    st.markdown("**ஒத்த பொருள் கொண்டவை**")
+                    for word in set(related_words['ஒத்த பொருள்']):
+                        st.markdown(f'<div class="related-word-item">{word}</div>', unsafe_allow_html=True)
+                
+                if related_words['எதிர் பொருள்']:
+                    st.markdown("**எதிர் பொருள் கொண்டவை**")
+                    for word in set(related_words['எதிர் பொருள்']):
+                        st.markdown(f'<div class="related-word-item">{word}</div>', unsafe_allow_html=True)
+                
+                if related_words['உதாரணங்கள்']:
+                    st.markdown("**உதாரண வாக்கியங்கள்**")
+                    for example in related_words['உதாரணங்கள்']:
+                        st.markdown(f"- {example}")
+            
+            st.markdown("</div>", unsafe_allow_html=True)  # card close
+
 with col2:
-    # விரைவான தேர்வு மற்றும் அர்த்தங்கள்
+    # அர்த்தங்கள் பகுதி
     with st.container():
         st.markdown(f"""
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0;">📚 அர்த்தங்கள்</h3>
+            <h3>📚 அர்த்தங்கள்</h3>
         """, unsafe_allow_html=True)
         
-        # தேர்வு பெட்டி மற்றும் டவுன்லோட் பொத்தான்
+        # தேர்வு பெட்டி
         if 'matches' in locals() and matches:
             chosen = st.selectbox(
                 "ஒரு சொல்லைத் தேர்ந்தெடுக்கவும்", 
@@ -333,6 +373,7 @@ with col2:
                 label_visibility="collapsed"
             )
             
+            # பதிவிறக்கம் பொத்தான்
             if chosen:
                 towrite = BytesIO()
                 syns = wordnet.synsets(chosen)
@@ -342,21 +383,11 @@ with col2:
                         pos = "வினை" if syn.pos() == 'v' else "பெயர்" if syn.pos() == 'n' else "பெயரடை" if syn.pos() in ('a', 's') else "வினையடை"
                         eng = syn.definition()
                         ta = translate_to_tamil(eng)
-                        
-                        # தொடர்புடைய வார்த்தைகளைப் பெறுதல்
-                        related_words = get_related_words(syn)
-                        related_str = ""
-                        if related_words['ஒத்த பொருள்']:
-                            related_str += f"ஒத்தவை: {', '.join(set(related_words['ஒத்த பொருள்']))}"
-                        if related_words['எதிர் பொருள்']:
-                            related_str += f" | எதிர்: {', '.join(set(related_words['எதிர் பொருள்']))}"
-                        
                         data_rows.append({
                             "எண்": i, 
                             "வகை": pos, 
                             "ஆங்கிலம்": eng, 
-                            "தமிழ்": ta,
-                            "தொடர்புடையவை": related_str
+                            "தமிழ்": ta
                         })
                     
                     df_export = pd.DataFrame(data_rows)
@@ -370,8 +401,6 @@ with col2:
                         file_name=f"{chosen}_அர்த்தங்கள்.xlsx",
                         help="இந்த சொல்லின் அனைத்து அர்த்தங்களையும் Excel கோப்பாக சேமிக்க"
                     )
-        
-        st.markdown("</div>", unsafe_allow_html=True)  # flex div close
         
         # தேர்ந்தெடுக்கப்பட்ட சொல்லின் அர்த்தங்கள்
         if 'chosen' in locals() and chosen:
@@ -390,50 +419,14 @@ with col2:
                         st.markdown(f"**🌍 ஆங்கிலம்:** {eng}")
                         if ta:
                             st.markdown(f"**🇮🇳 தமிழ்:** {ta}")
-                        
-                        # தொடர்புடைய வார்த்தைகளைக் காட்டுதல்
-                        related_words = get_related_words(syn)
-                        
-                        if related_words['ஒத்த பொருள்'] or related_words['எதிர் பொருள்'] or related_words['உதாரணங்கள்']:
-                            st.markdown("---")
-                            st.markdown("**🔗 தொடர்புடையவை:**")
-                            
-                            if related_words['ஒத்த பொருள்']:
-                                st.markdown(f"""
-                                <div class="related-words-card">
-                                    <h4>ஒத்த பொருள் கொண்டவை</h4>
-                                    <div>
-                                """, unsafe_allow_html=True)
-                                for word in set(related_words['ஒத்த பொருள்']):
-                                    st.markdown(f'<div class="related-word-item">{word}</div>', unsafe_allow_html=True)
-                                st.markdown("</div></div>", unsafe_allow_html=True)
-                            
-                            if related_words['எதிர் பொருள்']:
-                                st.markdown(f"""
-                                <div class="related-words-card">
-                                    <h4>எதிர் பொருள் கொண்டவை</h4>
-                                    <div>
-                                """, unsafe_allow_html=True)
-                                for word in set(related_words['எதிர் பொருள்']):
-                                    st.markdown(f'<div class="related-word-item">{word}</div>', unsafe_allow_html=True)
-                                st.markdown("</div></div>", unsafe_allow_html=True)
-                            
-                            if related_words['உதாரணங்கள்']:
-                                st.markdown(f"""
-                                <div class="related-words-card">
-                                    <h4>உதாரண வாக்கியங்கள்</h4>
-                                """, unsafe_allow_html=True)
-                                for example in related_words['உதாரணங்கள்']:
-                                    st.markdown(f"- {example}")
-                                st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)  # card close
 
 # அடிக்குறிப்பு
 st.markdown(f"""
-<div class="footer">
+<div class="footer" style="color:#202124;">
     <p style="margin:0;">💡 உதவி: குறுகிய இறுதி எழுத்துகளை முதலில் முயற்சிக்கவும் (எ.கா 'ing', 'tion')</p>
-    <p style="margin:10px 0 0 0; font-size:14px; color:#5f6368;">இந்த பயன்பாடு குழந்தைகளின் ஆங்கில கற்றலை மகிழ்ச்சியாக மாற்ற உதவுகிறது!</p>
+    <p style="margin:10px 0 0 0; font-size:14px;">இந்த பயன்பாடு குழந்தைகளின் ஆங்கில கற்றலை மகிழ்ச்சியாக மாற்ற உதவுகிறது!</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -447,4 +440,3 @@ st.markdown("""
     <div style="display:inline-block; margin:0 5px;">🧩</div>
 </div>
 """, unsafe_allow_html=True)
-
