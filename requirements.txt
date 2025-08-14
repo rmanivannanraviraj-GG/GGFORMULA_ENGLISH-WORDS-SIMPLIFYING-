@@ -4,3 +4,6 @@ nltk
 deep-translator
 xlsxwriter
 requests
+pip install streamlit pandas nltk xlsxwriter
+# optional - for Tamil translation (if you want it)
+pip install deep-translator
