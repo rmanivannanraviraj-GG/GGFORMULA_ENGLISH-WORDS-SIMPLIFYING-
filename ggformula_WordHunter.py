@@ -1,4 +1,4 @@
-# app_streamlit_suffix_kids_advanced.py
+# app_streamlit_suffix_kids_enhanced.py
 import streamlit as st
 import pandas as pd
 import textwrap
@@ -52,6 +52,30 @@ def find_matches(words, suffix, before_letters):
               (before_letters == 0 or len(w) - len(suf) == before_letters)]
     return sorted(matched, key=len)
 
+def get_related_words(synset):
+    """தொடர்புடைய வார்த்தைகளைப் பெறுவது"""
+    related = {
+        'ஒத்த பொருள்': [],
+        'எதிர் பொருள்': [],
+        'உதாரணங்கள்': []
+    }
+    
+    # ஒத்த பொருள் (Synonyms)
+    for lemma in synset.lemmas():
+        if lemma.name() != synset.name().split('.')[0]:
+            related['ஒத்த பொருள்'].append(lemma.name())
+    
+    # எதிர் பொருள் (Antonyms)
+    for lemma in synset.lemmas():
+        for antonym in lemma.antonyms():
+            related['எதிர் பொருள்'].append(antonym.name())
+    
+    # உதாரணங்கள் (Examples)
+    if synset.examples():
+        related['உதாரணங்கள்'] = synset.examples()
+    
+    return related
+
 # ---------- UI Styling ----------
 st.markdown(f"""
 <style>
@@ -68,7 +92,7 @@ body {{
     padding-top: 1rem;
 }}
 
-h1, h2, h3 {{
+h1, h2, h3, h4 {{
     color: {COLORS['primary']};
     margin-bottom: 0.5rem !important;
 }}
@@ -188,6 +212,23 @@ tr:nth-child(even) {{
     border: 2px dashed {COLORS['primary']}40;
 }}
 
+/* தொடர்புடைய சொற்கள் அட்டை */
+.related-words-card {{
+    background-color: {COLORS['card']};
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 15px;
+    border: 1px solid {COLORS['border']};
+}}
+
+.related-word-item {{
+    padding: 8px;
+    margin: 5px 0;
+    background-color: {COLORS['highlight']}15;
+    border-radius: 8px;
+    display: inline-block;
+}}
+
 /* முன்னேற்ற பட்டை */
 .stProgress > div > div > div > div {{
     background-color: {COLORS['accent']} !important;
@@ -302,7 +343,22 @@ with col2:
                         pos = "வினை" if syn.pos() == 'v' else "பெயர்" if syn.pos() == 'n' else "பெயரடை" if syn.pos() in ('a', 's') else "வினையடை"
                         eng = syn.definition()
                         ta = translate_to_tamil(eng)
-                        data_rows.append({"எண்": i, "வகை": pos, "அர்த்தம்": eng, "தமிழ்": ta})
+                        
+                        # தொடர்புடைய வார்த்தைகளைப் பெறுதல்
+                        related_words = get_related_words(syn)
+                        related_str = ""
+                        if related_words['ஒத்த பொருள்']:
+                            related_str += f"ஒத்தவை: {', '.join(set(related_words['ஒத்த பொருள்']))}"
+                        if related_words['எதிர் பொருள்']:
+                            related_str += f" | எதிர்: {', '.join(set(related_words['எதிர் பொருள்']))}"
+                        
+                        data_rows.append({
+                            "எண்": i, 
+                            "வகை": pos, 
+                            "ஆங்கிலம்": eng, 
+                            "தமிழ்": ta,
+                            "தொடர்புடையவை": related_str
+                        })
                     
                     df_export = pd.DataFrame(data_rows)
                     with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
@@ -335,6 +391,42 @@ with col2:
                         st.markdown(f"**🌍 ஆங்கிலம்:** {eng}")
                         if ta:
                             st.markdown(f"**🇮🇳 தமிழ்:** {ta}")
+                        
+                        # தொடர்புடைய வார்த்தைகளைக் காட்டுதல்
+                        related_words = get_related_words(syn)
+                        
+                        if related_words['ஒத்த பொருள்'] or related_words['எதிர் பொருள்'] or related_words['உதாரணங்கள்']:
+                            st.markdown("---")
+                            st.markdown("**🔗 தொடர்புடையவை:**")
+                            
+                            if related_words['ஒத்த பொருள்']:
+                                st.markdown(f"""
+                                <div class="related-words-card">
+                                    <h4>ஒத்த பொருள் கொண்டவை</h4>
+                                    <div>
+                                """, unsafe_allow_html=True)
+                                for word in set(related_words['ஒத்த பொருள்']):
+                                    st.markdown(f'<div class="related-word-item">{word}</div>', unsafe_allow_html=True)
+                                st.markdown("</div></div>", unsafe_allow_html=True)
+                            
+                            if related_words['எதிர் பொருள்']:
+                                st.markdown(f"""
+                                <div class="related-words-card">
+                                    <h4>எதிர் பொருள் கொண்டவை</h4>
+                                    <div>
+                                """, unsafe_allow_html=True)
+                                for word in set(related_words['எதிர் பொருள்']):
+                                    st.markdown(f'<div class="related-word-item">{word}</div>', unsafe_allow_html=True)
+                                st.markdown("</div></div>", unsafe_allow_html=True)
+                            
+                            if related_words['உதாரணங்கள்']:
+                                st.markdown(f"""
+                                <div class="related-words-card">
+                                    <h4>உதாரண வாக்கியங்கள்</h4>
+                                """, unsafe_allow_html=True)
+                                for example in related_words['உதாரணங்கள்']:
+                                    st.markdown(f"- {example}")
+                                st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)  # card close
 
