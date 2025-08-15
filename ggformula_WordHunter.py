@@ -40,7 +40,7 @@ def translate_definitions(definitions, target_lang='ta'):
             progress_bar.progress((index + 1) / total_items, text=f"Translating... {index + 1}/{total_items}")
             return translated_text
         except Exception:
-            return "" # Returning empty string on failure
+            return "Translation failed." # Returning a message on failure
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(translate_with_progress, definitions, range(total_items)))
