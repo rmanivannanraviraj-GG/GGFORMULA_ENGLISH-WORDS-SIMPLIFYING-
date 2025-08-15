@@ -136,26 +136,28 @@ st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><sma
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-    # New row for input controls - stacked on small screens
+    # All input controls are now at the top
     col_input1, col_input2 = st.columns(2)
     with col_input1:
         before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with col_input2:
         lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
 
+    suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+    
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
-
+    
+    # Calculate matches once
+    all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+    matches = find_matches(all_words, suffix_input, before_letters)
+    
     # Column 1: Find Words
     with col1:
         st.subheader("🔎 Find Words")
-        suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
-        all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-        matches = find_matches(all_words, suffix_input, before_letters)
-        
-        # Display Total Words Found next to the subheader
+        # Display Total Words Found below subheader
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
         if matches:
