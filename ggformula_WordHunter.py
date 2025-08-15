@@ -1,4 +1,4 @@
-# app_streamlit_suffix_toggle_translate_parallel_refactored.py
+# app_streamlit_suffix_toggle_translate_parallel_new_design.py
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
-
 # Streamlit page config
 st.set_page_config(page_title="சொல் தேடல்", layout="wide")
 
@@ -85,93 +84,112 @@ def make_highlight_html(word: str, suf: str):
     if suf and word.lower().endswith(suf.lower()):
         prefix = word[:-len(suf)]
         suffix_part = word[-len(suf):]
-        return f"<div style='font-size:20px; padding:6px;'><span>{prefix}</span><span style='color:#e53935; font-weight:700'>{suffix_part}</span></div>"
+        return f"<div style='font-size:20px; padding:6px;'><span>{prefix}</span><span style='color:#f44336; font-weight:700'>{suffix_part}</span></div>"
     return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
 # --- Main Streamlit App Layout ---
 st.markdown("""
 <style>
 .app-header {
-    background: linear-gradient(90deg, #a1c4fd, #c2e9fb);
-    padding: 12px;
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    padding: 20px;
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.main-container {
+    background-color: #f0f2f6;
+    padding: 30px;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.content-box {
+    background-color: #ffffff;
+    padding: 20px;
     border-radius: 8px;
-    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+    max-height: 500px;
+    overflow-y: auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.st-emotion-cache-1r65d8v {
+    background: #f0f2f6;
+}
+.st-emotion-cache-12m3106 {
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='app-header'><h1 style='margin:0'>கல்வி விதைகள் முளைக்கும் இடம்</h1><small>Suffix அடிப்படையில் சொற்களைத் தேடவும், அர்த்தங்களுடன் பார்க்கவும்</small></div>", unsafe_allow_html=True)
+# Header with new style
+st.markdown("<div class='app-header'><h1 style='margin:0'>சொல் தேடல்</h1><p>விகுதி மற்றும் அர்த்தங்களுடன் சொற்களைக் கண்டறியலாம்</p></div>", unsafe_allow_html=True)
 
-# Sidebar for controls
-with st.sidebar:
-    st.header("🔧 தேடுதலை எளிமையாக்கு")
-    before_letters = st.number_input(
-        "இறுதிக்கு முன் உள்ள எழுத்துகள் (0 என்றால் எந்தவொரு எண்ணும்)",
-        min_value=0, step=1, value=0
-    )
-    lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
-
-# Main content layout
-col1, col2 = st.columns([1, 2])
-
-# Load data only once
-all_words = get_all_wordnet_lemmas()
-
-with col1:
-    st.subheader("🔎 சொற்களைத் தேடு")
-    suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight")
+# Main container
+with st.container():
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-    if not suffix_input:
-        st.warning("Suffix-ஐ உள்ளிடவும்.")
-        matches = []
-    else:
-        matches = find_matches(all_words, suffix_input, before_letters)
+    col1, col2 = st.columns([1, 2], gap="large")
+
+    with col1:
+        st.subheader("🔎 சொற்களைத் தேடு")
+        suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight", help="நீங்கள் தேட விரும்பும் விகுதியை உள்ளிடவும்.")
+        
+        all_words = get_all_wordnet_lemmas()
+        matches = find_matches(all_words, suffix_input, 0)
+        
+        st.markdown(f"**கிடைத்த மொத்த சொற்கள்:** {len(matches)}")
+        
+        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
+        if matches:
+            for w in matches:
+                st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+        else:
+            st.info("முடிவுகள் எதுவும் இல்லை.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.subheader("📘 சொற்களின் பொருள்கள்")
+        
+        if matches:
+            df_export = get_word_definitions(matches)
+            
+            lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
+            
+            if lang_choice != "English Only":
+                definitions_to_translate = df_export["ஆங்கிலம்"].tolist()
+                with st.spinner("மொழிபெயர்க்கப்படுகிறது..."):
+                    tamil_list = translate_definitions(definitions_to_translate)
+                    df_export["தமிழ்"] = tamil_list
+            else:
+                df_export["தமிழ்"] = "-"
+
+            if lang_choice == "English Only":
+                df_view = df_export[["சொல்", "சொல் வகை", "ஆங்கிலம்"]]
+            elif lang_choice == "Tamil Only":
+                df_view = df_export[["சொல்", "சொல் வகை", "தமிழ்"]]
+            else:
+                df_view = df_export
+
+            st.markdown("<div class='content-box'>", unsafe_allow_html=True)
+            st.dataframe(df_view, use_container_width=True, height=450)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # Excel download button positioned below the dataframe
+            towrite = BytesIO()
+            with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                df_export.to_excel(writer, index=False, sheet_name="Meanings")
+            towrite.seek(0)
+            st.download_button(
+                "📥 EXCEL SHEET-ஆக பதிவிறக்கு",
+                towrite,
+                file_name=f"words_with_{suffix_input}_suffix.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+        else:
+            st.info("இங்கே முடிவுகள் காண்பிக்கப்படும்.")
     
-    st.markdown(f"**கிடைத்த மொத்த சொற்கள்:** {len(matches)}")
-    
-    # This is the scrollable list for words
-    st.markdown("<div style='max-height:520px; overflow-y:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
-    if matches:
-        for w in matches:
-            st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
-    else:
-        st.info("முடிவுகள் எதுவும் இல்லை.")
     st.markdown("</div>", unsafe_allow_html=True)
-
-with col2:
-    st.subheader("📘 சொற்களின் பொருள்கள்")
-    
-    if matches:
-        df_export = get_word_definitions(matches)
-        
-        if lang_choice != "English Only":
-            definitions_to_translate = df_export["ஆங்கிலம்"].tolist()
-            with st.spinner("மொழிபெயர்க்கப்படுகிறது..."):
-                tamil_list = translate_definitions(definitions_to_translate)
-                df_export["தமிழ்"] = tamil_list
-        else:
-            df_export["தமிழ்"] = "-"
-
-        if lang_choice == "English Only":
-            df_view = df_export[["சொல்", "சொல் வகை", "ஆங்கிலம்"]]
-        elif lang_choice == "Tamil Only":
-            df_view = df_export[["சொல்", "சொல் வகை", "தமிழ்"]]
-        else:
-            df_view = df_export
-
-        # Excel download button
-        towrite = BytesIO()
-        with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-            df_export.to_excel(writer, index=False, sheet_name="Meanings")
-        towrite.seek(0)
-        st.download_button(
-            "📥 EXCEL SHEET-ஆக பதிவிறக்கு",
-            towrite,
-            file_name=f"words_with_{suffix_input}_suffix.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        
-        st.dataframe(df_view, use_container_width=True)
-    else:
-        st.info("இங்கே முடிவுகள் காண்பிக்கப்படும்.")
-
