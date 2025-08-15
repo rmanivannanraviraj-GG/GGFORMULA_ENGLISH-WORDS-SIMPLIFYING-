@@ -8,7 +8,6 @@ import nltk
 from concurrent.futures import ThreadPoolExecutor
 
 # Download WordNet data (only once)
-try:
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
@@ -202,4 +201,5 @@ with st.container():
             st.info("இங்கே முடிவுகள் காண்பிக்கப்படும்.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
