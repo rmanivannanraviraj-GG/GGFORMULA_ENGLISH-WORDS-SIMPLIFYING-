@@ -128,6 +128,7 @@ def make_highlight_html(word, suf):
     else:
         return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
+# --- Main Streamlit App Layout ---
 # Header
 st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Find and explore words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
@@ -169,6 +170,25 @@ with st.container():
             synonyms = find_synonyms(word_for_synonyms)
             st.write(f"Synonyms for '{word_for_synonyms}':")
             st.write(", ".join(synonyms) if synonyms else "No synonyms found.")
+
+        # New feature: Related Words Search
+        st.subheader("🔗 Find Related Words")
+        word_for_related = st.text_input("Enter a word (e.g., 'tastes', 'days'):", value="tastes")
+        
+        # A custom dictionary for related words
+        related_words_dict = {
+            'tastes': ['acid', 'salt', 'gall', 'sour', 'acerb', 'sweet', 'bitter', 'pungent', 'astringent'],
+            'days': ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+            'colors': ['red', 'green', 'blue', 'yellow', 'orange', 'purple', 'black', 'white'],
+            'fruits': ['apple', 'banana', 'orange', 'grape', 'strawberry', 'mango']
+        }
+        
+        if word_for_related.lower() in related_words_dict:
+            related_list = related_words_dict[word_for_related.lower()]
+            st.write(f"Related words for '{word_for_related}':")
+            st.write(", ".join(related_list))
+        elif word_for_related:
+            st.write("No related words found in our dictionary.")
 
 
     with col2:
