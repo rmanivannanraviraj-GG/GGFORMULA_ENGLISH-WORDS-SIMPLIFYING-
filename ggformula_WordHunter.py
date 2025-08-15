@@ -12,15 +12,15 @@ nltk.download('wordnet')
 nltk.download('omw-1.4')
 
 # Streamlit page config
-st.set_page_config(page_title="சொல் தேடல்", layout="wide")
+st.set_page_config(page_title="Word Explorer", layout="wide")
 
-# POS mapping in Tamil
+# POS mapping
 POS_MAP = {
-    'n': 'பெயர்ச்சொல்',
-    'v': 'வினைச்சொல்',
-    'a': 'விளிப்பெயர்',
-    's': 'விளிப்பெயர் (சாட்டிலைட்)',
-    'r': 'வினையடை'
+    'n': 'Noun',
+    'v': 'Verb',
+    'a': 'Adjective',
+    's': 'Adjective (Satellite)',
+    'r': 'Adverb'
 }
 
 @st.cache_data
@@ -32,15 +32,15 @@ def get_all_wordnet_lemmas():
 def translate_definitions(definitions, target_lang='ta'):
     """Translates a list of definitions in parallel and caches the result."""
     total_items = len(definitions)
-    progress_bar = st.progress(0, text="மொழிபெயர்க்கப்படுகிறது... தயவுசெய்து காத்திருக்கவும்.")
+    progress_bar = st.progress(0, text="Translating... please wait.")
     
     def translate_with_progress(text, index):
         try:
             translated_text = GoogleTranslator(source='auto', target=target_lang).translate(text)
-            progress_bar.progress((index + 1) / total_items, text=f"மொழிபெயர்க்கப்படுகிறது... {index + 1}/{total_items}")
+            progress_bar.progress((index + 1) / total_items, text=f"Translating... {index + 1}/{total_items}")
             return translated_text
         except Exception:
-            return "மொழிபெயர்ப்பு தோல்வியடைந்தது."
+            return "Translation failed."
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(translate_with_progress, definitions, range(total_items)))
@@ -69,13 +69,13 @@ def get_word_definitions(word_list: list):
     for word in word_list:
         syns = wordnet.synsets(word)
         if not syns:
-            data_rows.append({"சொல்": word, "சொல் வகை": "-", "ஆங்கிலம்": "No definition found."})
+            data_rows.append({"Word": word, "Word Type": "-", "English": "No definition found."})
         else:
             for syn in syns:
                 data_rows.append({
-                    "சொல்": word,
-                    "சொல் வகை": POS_MAP.get(syn.pos(), "பெயர்ச்சொல்"),
-                    "ஆங்கிலம்": syn.definition()
+                    "Word": word,
+                    "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                    "English": syn.definition()
                 })
     return pd.DataFrame(data_rows)
 
@@ -125,7 +125,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header with new style
-st.markdown("<div class='app-header'><h1 style='margin:0'>சொல் தேடல்</h1><p>விகுதி மற்றும் அர்த்தங்களுடன் சொற்களைக் கண்டறியலாம்</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><p>Find and explore words with suffixes and meanings</p></div>", unsafe_allow_html=True)
 
 # Main container
 with st.container():
@@ -134,19 +134,19 @@ with st.container():
     # New row for input controls
     control_cols = st.columns(3)
     with control_cols[0]:
-        before_letters = st.number_input("இறுதிக்கு முன் உள்ள எழுத்துகள் (0 என்றால் எந்தவொரு எண்ணும்)", min_value=0, step=1, value=0)
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with control_cols[1]:
-        lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
+        lang_choice = st.radio("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
     with control_cols[2]:
-        max_threads = st.slider("மொழிபெயர்ப்பு நூல்கள் (வேக கட்டுப்பாடு)", min_value=2, max_value=20, value=10)
+        max_threads = st.slider("Translation Threads (Speed Control)", min_value=2, max_value=20, value=10)
 
     st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2 = st.columns([1, 2], gap="large")
 
     with col1:
-        st.subheader("🔎 சொற்களைத் தேடு")
-        suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight", help="நீங்கள் தேட விரும்பும் விகுதியை உள்ளிடவும்.")
+        st.subheader("🔎 Find Words")
+        suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", help="Enter the suffix you want to search for.")
         
         all_words = get_all_wordnet_lemmas()
         matches = find_matches(all_words, suffix_input, before_letters)
@@ -154,41 +154,41 @@ with st.container():
         # Sort by length as the default
         matches.sort(key=len)
 
-        st.markdown(f"**கிடைத்த மொத்த சொற்கள்:** {len(matches)}")
+        st.markdown(f"**Total Words Found:** {len(matches)}")
         
-        # வார்த்தைகளை ஒரு கட்டத்திற்குள் ஸ்க்ரோல் செய்யும்படி மாற்றி அமைக்கப்பட்டுள்ளது
+        # Words are displayed in a scrollable container
         st.markdown("<div class='content-box'>", unsafe_allow_html=True)
         if matches:
             for w in matches:
                 st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
         else:
-            st.info("முடிவுகள் எதுவும் இல்லை.")
+            st.info("No results found.")
         st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
-        st.subheader("📘 சொற்களின் பொருள்கள்")
+        st.subheader("📘 Word Definitions")
         
         if matches:
             df_export = get_word_definitions(matches)
             
             # Use max_threads from the new slider
             if lang_choice != "English Only":
-                definitions_to_translate = df_export["ஆங்கிலம்"].tolist()
-                with st.spinner("மொழிபெயர்க்கப்படுகிறது..."):
+                definitions_to_translate = df_export["English"].tolist()
+                with st.spinner("Translating..."):
                     tamil_list = translate_definitions(definitions_to_translate)
-                    df_export["தமிழ்"] = tamil_list
+                    df_export["Tamil"] = tamil_list
             else:
-                df_export["தமிழ்"] = "-"
+                df_export["Tamil"] = "-"
 
             if lang_choice == "English Only":
-                df_view = df_export[["சொல்", "சொல் வகை", "ஆங்கிலம்"]]
+                df_view = df_export[["Word", "Word Type", "English"]]
             elif lang_choice == "Tamil Only":
-                df_view = df_export[["சொல்", "சொல் வகை", "தமிழ்"]]
+                df_view = df_export[["Word", "Word Type", "Tamil"]]
             else:
                 df_view = df_export
 
-            # சொற்பொருட்களை ஸ்க்ரோல் செய்யும்படி உள்ளேயே அமைத்துள்ளோம்
+            # Definitions are displayed in a scrollable dataframe
             st.dataframe(df_view, use_container_width=True, height=450)
 
             # Excel download button positioned below the dataframe
@@ -197,13 +197,13 @@ with st.container():
                 df_export.to_excel(writer, index=False, sheet_name="Meanings")
             towrite.seek(0)
             st.download_button(
-                "📥 EXCEL SHEET-ஆக பதிவிறக்கு",
+                "📥 Download as EXCEL SHEET",
                 towrite,
                 file_name=f"words_with_{suffix_input}_suffix.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
         else:
-            st.info("இங்கே முடிவுகள் காண்பிக்கப்படும்.")
+            st.info("Results will be shown here.")
     
     st.markdown("</div>", unsafe_allow_html=True)
