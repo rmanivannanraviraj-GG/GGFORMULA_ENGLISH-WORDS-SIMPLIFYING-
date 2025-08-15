@@ -162,14 +162,14 @@ with st.container():
     
     @st.cache_data
     def get_all_words():
-        """Loads all words from WordNet, Brown, and Gutenberg corpora."""
+        """Loads and combines all words from multiple corpora."""
         words_from_wordnet = set(wordnet.all_lemma_names())
-        words_from_brown = set(brown.words())
-        words_from_gutenberg = set(gutenberg.words())
+        words_from_brown = {w.lower() for w in brown.words() if w.isalpha()}
+        words_from_gutenberg = {w.lower() for w in gutenberg.words() if w.isalpha()}
         
-        all_words = words_from_wordnet.union(words_from_brown).union(words_from_gutenberg)
-        alphabetic_words = [w.lower() for w in all_words if w.isalpha()]
-        return sorted(set(alphabetic_words), key=lambda x: (len(x), x.lower()))
+        all_unique_words = words_from_wordnet.union(words_from_brown).union(words_from_gutenberg)
+
+        return sorted(list(all_unique_words), key=lambda x: (len(x), x.lower()))
 
     all_words = get_all_words()
     matches = find_matches(all_words, suffix_input, before_letters)
