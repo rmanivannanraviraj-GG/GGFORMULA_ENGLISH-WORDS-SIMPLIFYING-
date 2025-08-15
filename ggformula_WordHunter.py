@@ -9,12 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Download WordNet data (only once)
 try:
-    nltk.data.find('corpora/wordnet')
-    nltk.data.find('corpora/omw-1.4')
-except (nltk.downloader.DownloadError, LookupError):
-    st.info("NLTK தரவுகள் பதிவிறக்கப்படுகின்றன... இது சில நிமிடங்கள் ஆகலாம்.")
-    nltk.download('wordnet', quiet=True)
-    nltk.download('omw-1.4', quiet=True)
+nltk.download('wordnet')
+nltk.download('omw-1.4')
 
 # Streamlit page config
 st.set_page_config(page_title="சொல் தேடல்", layout="wide")
@@ -206,3 +202,4 @@ with st.container():
             st.info("இங்கே முடிவுகள் காண்பிக்கப்படும்.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
