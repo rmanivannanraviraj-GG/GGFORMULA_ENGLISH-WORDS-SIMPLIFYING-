@@ -69,13 +69,15 @@ def get_word_definitions(word_list: list):
     for word in word_list:
         syns = wordnet.synsets(word)
         if not syns:
-            data_rows.append({"Word": word, "Word Type": "-", "English": "No definition found."})
+            # Added "Tamil" column with default empty string
+            data_rows.append({"Word": word, "Word Type": "-", "English": "No definition found.", "Tamil": "-"})
         else:
             for syn in syns:
                 data_rows.append({
                     "Word": word,
                     "Word Type": POS_MAP.get(syn.pos(), "Noun"),
-                    "English": syn.definition()
+                    "English": syn.definition(),
+                    "Tamil": "-"
                 })
     return pd.DataFrame(data_rows)
 
