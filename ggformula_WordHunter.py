@@ -1,4 +1,3 @@
-# app_streamlit_suffix_toggle_translate_parallel.py
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -9,8 +8,14 @@ import nltk
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
+# For PDF generation
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import red, blue, black
+
 # Set default encoding to UTF-8
-# This fixes the 'invalid character' error
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
@@ -57,16 +62,61 @@ body {
     padding-left: 1rem;
     padding-right: 1rem;
 }
-.st-emotion-cache-1f8p3j0 { /* Adjusting padding for columns */
-    padding-left: 10px;
-    padding-right: 10px;
+.st-emotion-cache-1f8p3j0 > div {
+    /* To ensure columns are aligned at the top */
+    margin-top: 0;
 }
-
-/* New CSS for mobile-first design to stack controls on small screens */
-@media (max-width: 768px) {
-    .st-emotion-cache-1f8p3j0 > div {
-        flex-direction: column;
-    }
+.st-emotion-cache-1f8p3j0 > div > div > h3 {
+    margin-top: 0;
+}
+.st-emotion-cache-1f8p3j0 > div > div > p {
+    margin-top: 0;
+}
+/* CSS for the A4 practice sheet with 4-line design */
+.a4-paper {
+    width: 210mm;
+    height: 297mm;
+    background: white;
+    padding: 20mm;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 24px;
+    line-height: 2;
+    page-break-after: always;
+}
+.four-lines-container {
+    margin-bottom: 25px;
+    position: relative;
+    height: 60px;
+}
+.line {
+    position: absolute;
+    width: 100%;
+    border-bottom: 1px solid #ccc;
+}
+.line-top-red {
+    top: 0;
+    border-bottom: 1px solid red;
+}
+.line-blue {
+    top: 15px;
+    border-bottom: 1px dashed blue;
+}
+.line-blue-2 {
+    top: 30px;
+    border-bottom: 1px dashed blue;
+}
+.line-bottom-red {
+    top: 45px;
+    border-bottom: 1px solid red;
+}
+.practice-word {
+    font-size: 28px;
+    font-family: 'Times New Roman', Times, serif;
+    color: #333;
+    position: absolute;
+    top: 20px;
+    left: 5px;
+    z-index: 10;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -111,6 +161,14 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
+# Find synonyms for a given word
+def find_synonyms(word):
+    synonyms = set()
+    for syn in wordnet.synsets(word):
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name().replace('_', ' '))
+    return list(synonyms)
+
 # Highlight suffix in word with audio icon
 def make_highlight_html(word, suf):
     if suf and word.lower().endswith(suf.lower()):
@@ -120,9 +178,55 @@ def make_highlight_html(word, suf):
     else:
         return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
+# Function to create the practice sheet HTML
+def create_practice_sheet_html(words):
+    html_content = "<!DOCTYPE html><html><head><title>Word Practice Sheet</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap'); body{font-family:'Roboto',sans-serif;} .a4-paper{width:210mm;height:297mm;background:white;padding:20mm;} .four-lines-container{margin-bottom:20px;position:relative;height:60px;} .line{position:absolute;width:100%;border-bottom:1px solid #ccc;} .line-top-red{top:0;border-bottom:1px solid red;} .line-blue{top:15px;border-bottom:1px dashed blue;} .line-blue-2{top:30px;border-bottom:1px dashed blue;} .line-bottom-red{top:45px;border-bottom:1px solid red;} .practice-word{font-size:28px;font-family:'Times New Roman',Times,serif;color:#333;position:absolute;top:20px;left:5px;z-index:10;}</style></head><body><div class='a4-paper'>"
+    html_content += "<h2 style='text-align: center;'>Word Practice Sheet</h2>"
+    html_content += "<hr style='border: 1px solid black;'>"
+    
+    words_to_practice = words[:10]
+    
+    for word in words_to_practice:
+        html_content += f"<div class='four-lines-container'>"
+        html_content += f"<div class='line line-top-red'></div>"
+        html_content += f"<div class='line line-blue'></div>"
+        html_content += f"<div class='line line-blue'></div>"
+        html_content += f"<div class='line line-bottom-red'></div>"
+        html_content += f"<span class='practice-word'>{word}</span>"
+        html_content += "</div>"
+    
+    html_content += "</div></body></html>"
+    return html_content
+
+# Function to create the PDF content
+def create_pdf_content(words):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=1 * inch, bottomMargin=1 * inch)
+    
+    styles = getSampleStyleSheet()
+    
+    word_style = ParagraphStyle('WordStyle', parent=styles['Normal'], fontSize=20, leading=20, textColor=black, spaceAfter=20)
+    
+    story = []
+    
+    for word in words[:10]:
+        story.append(Paragraph(f"<b>{word}</b>", word_style))
+        story.append(Spacer(1, 0.1 * inch))
+        
+        # Adding the four lines for practice
+        story.append(Paragraph("_" * 50, ParagraphStyle('LineRedTop', parent=styles['Normal'], fontSize=16, leading=16, textColor=red, spaceAfter=2)))
+        story.append(Paragraph("_" * 50, ParagraphStyle('LineBlueMiddle', parent=styles['Normal'], fontSize=16, leading=16, textColor=blue, spaceAfter=2)))
+        story.append(Paragraph("_" * 50, ParagraphStyle('LineBlueMiddle2', parent=styles['Normal'], fontSize=16, leading=16, textColor=blue, spaceAfter=2)))
+        story.append(Paragraph("_" * 50, ParagraphStyle('LineRedBottom', parent=styles['Normal'], fontSize=16, leading=16, textColor=red, spaceAfter=2)))
+        story.append(Spacer(1, 0.5 * inch))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
 # --- Main Streamlit App Layout ---
 # Header
-st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
 # Main container
 with st.container():
@@ -143,7 +247,6 @@ with st.container():
     col1, col2 = st.columns(2, gap="large")
     
     # Calculate matches once
-    
     @st.cache_data
     def get_all_words():
         """Loads and combines all words from WordNet corpus."""
@@ -164,7 +267,7 @@ with st.container():
             st.dataframe(matches_df, height=450, use_container_width=True)
         else:
             st.info("No results found.")
-    
+
     # Column 2: Word Definitions
     with col2:
         st.subheader("📘 Word Definitions")
@@ -210,4 +313,18 @@ with st.container():
         else:
             st.info("No results found.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("📝 Word Tracer Generator")
+    
+    words_input = st.text_area("Enter words for practice (one per line):", height=150)
+    
+    if words_input:
+        words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
+        if words_for_tracer:
+            pdf_data = create_pdf_content(words_for_tracer)
+            st.download_button(
+                label="Download Practice Sheet as PDF",
+                data=pdf_data,
+                file_name="word_tracer_sheet.pdf",
+                mime="application/pdf"
+            )
