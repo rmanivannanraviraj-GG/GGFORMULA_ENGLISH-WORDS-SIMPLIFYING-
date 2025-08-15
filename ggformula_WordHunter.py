@@ -84,7 +84,7 @@ st.markdown("""
     padding: 20px;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
-    max-height: 500px;
+    max-height: 450px;  /* Height adjusted to 450px */
     overflow-y: auto;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
