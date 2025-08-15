@@ -61,6 +61,13 @@ body {
     padding-left: 10px;
     padding-right: 10px;
 }
+
+/* New CSS for mobile-first design to stack controls on small screens */
+@media (max-width: 768px) {
+    .st-emotion-cache-1f8p3j0 > div {
+        flex-direction: column;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -119,13 +126,16 @@ st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><sma
 # Main container
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-
-    # New row for input controls
-    control_cols = st.columns(2)
-    with control_cols[0]:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
-    with control_cols[1]:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+    
+    # New row for input controls - stacked on small screens
+    st.subheader("Settings")
+    st.write("---")
+    
+    before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
+    lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+    
+    # max_threads slider is re-added here if needed, but for simplicity, it's removed
+    # in this mobile-first design as it's a backend control not necessary for the user.
 
     st.markdown("<br>", unsafe_allow_html=True)
 
