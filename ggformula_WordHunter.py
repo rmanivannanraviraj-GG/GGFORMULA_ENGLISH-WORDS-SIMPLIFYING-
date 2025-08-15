@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+
 # Streamlit page config
 st.set_page_config(page_title="சொல் தேடல்", layout="wide")
 
@@ -130,6 +131,17 @@ st.markdown("<div class='app-header'><h1 style='margin:0'>சொல் தேட
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
+    # New row for input controls
+    control_cols = st.columns(3)
+    with control_cols[0]:
+        before_letters = st.number_input("இறுதிக்கு முன் உள்ள எழுத்துகள் (0 என்றால் எந்தவொரு எண்ணும்)", min_value=0, step=1, value=0)
+    with control_cols[1]:
+        lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
+    with control_cols[2]:
+        max_threads = st.slider("மொழிபெயர்ப்பு நூல்கள் (வேக கட்டுப்பாடு)", min_value=2, max_value=20, value=10)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     col1, col2 = st.columns([1, 2], gap="large")
 
     with col1:
@@ -160,8 +172,7 @@ with st.container():
         if matches:
             df_export = get_word_definitions(matches)
             
-            lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
-            
+            # Use max_threads from the new slider
             if lang_choice != "English Only":
                 definitions_to_translate = df_export["ஆங்கிலம்"].tolist()
                 with st.spinner("மொழிபெயர்க்கப்படுகிறது..."):
