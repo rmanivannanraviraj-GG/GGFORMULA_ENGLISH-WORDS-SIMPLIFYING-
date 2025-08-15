@@ -62,61 +62,16 @@ body {
     padding-left: 1rem;
     padding-right: 1rem;
 }
-.st-emotion-cache-1f8p3j0 > div {
-    /* To ensure columns are aligned at the top */
-    margin-top: 0;
+.st-emotion-cache-1f8p3j0 { /* Adjusting padding for columns */
+    padding-left: 10px;
+    padding-right: 10px;
 }
-.st-emotion-cache-1f8p3j0 > div > div > h3 {
-    margin-top: 0;
-}
-.st-emotion-cache-1f8p3j0 > div > div > p {
-    margin-top: 0;
-}
-/* CSS for the A4 practice sheet with 4-line design */
-.a4-paper {
-    width: 210mm;
-    height: 297mm;
-    background: white;
-    padding: 20mm;
-    font-family: 'Times New Roman', Times, serif;
-    font-size: 24px;
-    line-height: 2;
-    page-break-after: always;
-}
-.four-lines-container {
-    margin-bottom: 25px;
-    position: relative;
-    height: 60px;
-}
-.line {
-    position: absolute;
-    width: 100%;
-    border-bottom: 1px solid #ccc;
-}
-.line-top-red {
-    top: 0;
-    border-bottom: 1px solid red;
-}
-.line-blue {
-    top: 15px;
-    border-bottom: 1px dashed blue;
-}
-.line-blue-2 {
-    top: 30px;
-    border-bottom: 1px dashed blue;
-}
-.line-bottom-red {
-    top: 45px;
-    border-bottom: 1px solid red;
-}
-.practice-word {
-    font-size: 28px;
-    font-family: 'Times New Roman', Times, serif;
-    color: #333;
-    position: absolute;
-    top: 20px;
-    left: 5px;
-    z-index: 10;
+
+/* New CSS for mobile-first design to stack controls on small screens */
+@media (max-width: 768px) {
+    .st-emotion-cache-1f8p3j0 > div {
+        flex-direction: column;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -178,26 +133,6 @@ def make_highlight_html(word, suf):
     else:
         return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
-# Function to create the practice sheet HTML
-def create_practice_sheet_html(words):
-    html_content = "<!DOCTYPE html><html><head><title>Word Practice Sheet</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap'); body{font-family:'Roboto',sans-serif;} .a4-paper{width:210mm;height:297mm;background:white;padding:20mm;} .four-lines-container{margin-bottom:20px;position:relative;height:60px;} .line{position:absolute;width:100%;border-bottom:1px solid #ccc;} .line-top-red{top:0;border-bottom:1px solid red;} .line-blue{top:15px;border-bottom:1px dashed blue;} .line-blue-2{top:30px;border-bottom:1px dashed blue;} .line-bottom-red{top:45px;border-bottom:1px solid red;} .practice-word{font-size:28px;font-family:'Times New Roman',Times,serif;color:#333;position:absolute;top:20px;left:5px;z-index:10;}</style></head><body><div class='a4-paper'>"
-    html_content += "<h2 style='text-align: center;'>Word Practice Sheet</h2>"
-    html_content += "<hr style='border: 1px solid black;'>"
-    
-    words_to_practice = words[:10]
-    
-    for word in words_to_practice:
-        html_content += f"<div class='four-lines-container'>"
-        html_content += f"<div class='line line-top-red'></div>"
-        html_content += f"<div class='line line-blue'></div>"
-        html_content += f"<div class='line line-blue'></div>"
-        html_content += f"<div class='line line-bottom-red'></div>"
-        html_content += f"<span class='practice-word'>{word}</span>"
-        html_content += "</div>"
-    
-    html_content += "</div></body></html>"
-    return html_content
-
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
@@ -209,15 +144,21 @@ def create_pdf_content(words):
     
     story = []
     
+    # Header for the PDF
+    story.append(Paragraph("<b>Neat Handwriting Practice</b>", styles['Title']))
+    story.append(Spacer(1, 0.5 * inch))
+    
     for word in words[:10]:
+        # Add the word to trace
         story.append(Paragraph(f"<b>{word}</b>", word_style))
         story.append(Spacer(1, 0.1 * inch))
         
         # Adding the four lines for practice
-        story.append(Paragraph("_" * 50, ParagraphStyle('LineRedTop', parent=styles['Normal'], fontSize=16, leading=16, textColor=red, spaceAfter=2)))
-        story.append(Paragraph("_" * 50, ParagraphStyle('LineBlueMiddle', parent=styles['Normal'], fontSize=16, leading=16, textColor=blue, spaceAfter=2)))
-        story.append(Paragraph("_" * 50, ParagraphStyle('LineBlueMiddle2', parent=styles['Normal'], fontSize=16, leading=16, textColor=blue, spaceAfter=2)))
-        story.append(Paragraph("_" * 50, ParagraphStyle('LineRedBottom', parent=styles['Normal'], fontSize=16, leading=16, textColor=red, spaceAfter=2)))
+        # The lines are created using spaces and underscores for a simple effect
+        story.append(Paragraph("<u>" * 65, ParagraphStyle('LineRedTop', parent=styles['Normal'], textColor=red, fontSize=1)))
+        story.append(Paragraph("_" * 65, ParagraphStyle('LineBlueMiddle', parent=styles['Normal'], textColor=blue, fontSize=1)))
+        story.append(Paragraph("_" * 65, ParagraphStyle('LineBlueMiddle2', parent=styles['Normal'], textColor=blue, fontSize=1)))
+        story.append(Paragraph("<u>" * 65, ParagraphStyle('LineRedBottom', parent=styles['Normal'], textColor=red, fontSize=1)))
         story.append(Spacer(1, 0.5 * inch))
 
     doc.build(story)
@@ -249,7 +190,6 @@ with st.container():
     # Calculate matches once
     @st.cache_data
     def get_all_words():
-        """Loads and combines all words from WordNet corpus."""
         words_from_wordnet = set(wordnet.all_lemma_names())
         return sorted(list(words_from_wordnet), key=lambda x: (len(x), x.lower()))
 
