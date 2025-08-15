@@ -13,8 +13,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import red, blue, black
-from reportlab.graphics.shapes import Line, Drawing
+from reportlab.lib.colors import black
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -24,6 +25,13 @@ sys.stderr.reconfigure(encoding='utf-8')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
+# --- Register custom fonts ---
+try:
+    pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', 'KGPrimaryPenmanship.ttf'))
+    pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'KGPrimaryDots.ttf'))
+except:
+    st.error("Font files not found. Please ensure 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' are in the same directory.")
+    
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
 <style>
@@ -73,13 +81,6 @@ body {
 .st-emotion-cache-1f8p3j0 > div > div > p {
     margin-top: 0;
 }
-
-/* New CSS for mobile-first design to stack controls on small screens */
-@media (max-width: 768px) {
-    .st-emotion-cache-1f8p3j0 > div {
-        flex-direction: column;
-    }
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -123,23 +124,6 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
-# Find synonyms for a given word
-def find_synonyms(word):
-    synonyms = set()
-    for syn in wordnet.synsets(word):
-        for lemma in syn.lemmas():
-            synonyms.add(lemma.name().replace('_', ' '))
-    return list(synonyms)
-
-# Highlight suffix in word with audio icon
-def make_highlight_html(word, suf):
-    if suf and word.lower().endswith(suf.lower()):
-        p = word[:-len(suf)]
-        s = word[-len(suf):]
-        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
-    else:
-        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
-
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
@@ -147,26 +131,28 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    word_style = ParagraphStyle('WordStyle', parent=styles['Normal'], fontSize=20, leading=20, textColor=black, spaceAfter=20)
+    # Custom style for the Penmanship font
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
+    
+    # Custom style for the Dots font
+    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
     
     story = []
     
     # Header for the PDF
-    story.append(Paragraph("<b>Neat Handwriting Practice</b>", styles['Title']))
+    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    for word in words[:10]:
-        story.append(Paragraph(f"<b>{word}</b>", word_style))
-        story.append(Spacer(1, 0.1 * inch))
+    for word in words:
+        # Add the first line with the Penmanship font
+        story.append(Paragraph(word, penmanship_style))
+        story.append(Spacer(1, 0.2 * inch))
         
-        # Adding the four lines for practice
-        drawing = Drawing(doc.width, 45) # Create a drawing area
-        drawing.add(Line(0, 45, doc.width, 45, strokeColor=red)) # Top red line
-        drawing.add(Line(0, 30, doc.width, 30, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
-        drawing.add(Line(0, 15, doc.width, 15, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
-        drawing.add(Line(0, 0, doc.width, 0, strokeColor=red)) # Bottom red line
-        story.append(drawing)
-
+        # Add the remaining lines with the Dots font
+        for _ in range(5): # Repeat 5 times to fill the page
+            story.append(Paragraph(word, dots_style))
+            story.append(Spacer(1, 0.2 * inch))
+        
         story.append(Spacer(1, 0.5 * inch))
 
     doc.build(story)
