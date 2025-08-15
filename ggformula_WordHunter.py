@@ -91,9 +91,13 @@ with col1:
 
     st.markdown(f"**கிடைத்த மொத்த செற்கள்:** {len(matches)}")
 
-    st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
-    for w in matches:
-        st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+    # This is the scrollable list for words
+    st.markdown("<div style='max-height:520px; overflow-y:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
+    if matches:
+        for w in matches:
+            st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+    else:
+        st.info("முடிவுகள் எதுவும் இல்லை.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
@@ -141,6 +145,7 @@ with col2:
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
+
 
 
 
