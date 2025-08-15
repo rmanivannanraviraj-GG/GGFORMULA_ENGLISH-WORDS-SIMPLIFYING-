@@ -11,7 +11,7 @@ import sys
 # For PDF generation
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import red, blue, black
 from reportlab.graphics.shapes import Line, Drawing
@@ -63,9 +63,15 @@ body {
     padding-left: 1rem;
     padding-right: 1rem;
 }
-.st-emotion-cache-1f8p3j0 { /* Adjusting padding for columns */
-    padding-left: 10px;
-    padding-right: 10px;
+.st-emotion-cache-1f8p3j0 > div {
+    /* To ensure columns are aligned at the top */
+    margin-top: 0;
+}
+.st-emotion-cache-1f8p3j0 > div > div > h3 {
+    margin-top: 0;
+}
+.st-emotion-cache-1f8p3j0 > div > div > p {
+    margin-top: 0;
 }
 
 /* New CSS for mobile-first design to stack controls on small screens */
