@@ -81,24 +81,38 @@ body {
 }
 .four-lines-container {
     margin-bottom: 25px;
+    position: relative;
+    height: 60px;
 }
-.line-red {
-    border-top: 1px solid red;
-    height: 5px;
-    margin-bottom: 5px;
+.line {
+    position: absolute;
+    width: 100%;
+    border-bottom: 1px solid #ccc;
 }
-.line-blue {
-    border-top: 1px solid blue;
-    height: 15px;
-    margin-bottom: 5px;
+.line-top-red {
+    top: 0;
+    border-bottom: 1px solid red;
+}
+.line-middle-blue-1 {
+    top: 15px;
+    border-bottom: 1px dashed blue;
+}
+.line-middle-blue-2 {
+    top: 30px;
+    border-bottom: 1px dashed blue;
+}
+.line-bottom-red {
+    top: 45px;
+    border-bottom: 1px solid red;
 }
 .practice-word {
     font-size: 28px;
-    font-weight: bold;
+    font-family: 'Times New Roman', Times, serif;
     color: #333;
-    letter-spacing: 2px;
-    position: relative;
-    top: 20px;
+    position: absolute;
+    top: 15px;
+    left: 5px;
+    z-index: 10;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -162,23 +176,24 @@ def make_highlight_html(word, suf):
 
 # Function to create the practice sheet HTML
 def create_practice_sheet_html(words):
-    html_content = "<div class='a4-paper'>"
-    html_content += "<h2>Word Practice Sheet</h2>"
+    html_content = "<!DOCTYPE html><html><head><title>Word Practice Sheet</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap'); body{font-family:'Roboto',sans-serif;} .a4-paper{width:210mm;height:297mm;background:white;padding:20mm;} .four-lines-container{margin-bottom:20px;position:relative;height:60px;} .line{position:absolute;width:100%;border-bottom:1px solid #ccc;} .line-top-red{top:0;border-bottom:1px solid red;} .line-blue{top:15px;border-bottom:1px dashed blue;} .line-blue-2{top:30px;border-bottom:1px dashed blue;} .line-bottom-red{top:45px;border-bottom:1px solid red;} .practice-word{font-size:28px;font-family:'Times New Roman',Times,serif;color:#333;position:absolute;top:20px;left:5px;z-index:10;}</style></head><body><div class='a4-paper'>"
+    html_content += "<h2 style='text-align: center;'>Word Practice Sheet</h2>"
     html_content += "<hr style='border: 1px solid black;'>"
     
-    # Generate a maximum of 10 words for the practice sheet
     words_to_practice = words[:10]
     
     for word in words_to_practice:
         html_content += f"<div class='four-lines-container'>"
-        html_content += f"<div class='line-red'></div>"
-        html_content += f"<div class='line-blue'></div>"
-        html_content += f"<div class='line-blue'></div>"
-        html_content += f"<div class='line-red'></div>"
+        html_content += f"<div class='line line-top-red'></div>"
+        html_content += f"<div class='line line-blue'></div>"
+        html_content += f"<div class='line line-blue'></div>"
+        html_content += f"<div class='line line-bottom-red'></div>"
+        html_content += f"<span class='practice-word'>{word}</span>"
         html_content += "</div>"
     
-    html_content += "</div>"
+    html_content += "</div></body></html>"
     return html_content
+
 
 # --- Main Streamlit App Layout ---
 # Header
