@@ -180,7 +180,14 @@ with st.container():
             'tastes': ['acid', 'salt', 'gall', 'sour', 'acerb', 'sweet', 'bitter', 'pungent', 'astringent'],
             'days': ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
             'colors': ['red', 'green', 'blue', 'yellow', 'orange', 'purple', 'black', 'white'],
-            'fruits': ['apple', 'banana', 'orange', 'grape', 'strawberry', 'mango']
+            'fruits': ['apple', 'banana', 'orange', 'grape', 'strawberry', 'mango'],
+            'zodiac': ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'],
+            'diseases': ['flu', 'cold', 'fever', 'allergy', 'asthma', 'diabetes', 'cancer', 'hypertension'],
+            'animals': ['lion', 'tiger', 'elephant', 'giraffe', 'zebra', 'bear', 'wolf', 'fox'],
+            'birds': ['eagle', 'parrot', 'sparrow', 'penguin', 'owl', 'pigeon', 'peacock'],
+            'fishes': ['tuna', 'salmon', 'cod', 'sardine', 'trout', 'shark', 'whale'],
+            'reptiles': ['snake', 'lizard', 'turtle', 'crocodile', 'alligator', 'gecko'],
+            'sounds': ['chirp', 'buzz', 'whistle', 'roar', 'scream', 'giggle', 'whisper', 'sneeze']
         }
         
         if word_for_related.lower() in related_words_dict:
