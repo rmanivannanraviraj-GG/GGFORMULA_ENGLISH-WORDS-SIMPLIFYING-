@@ -4,4 +4,5 @@ nltk
 deep-translator
 xlsxwriter
 requests
+reportlab
 
