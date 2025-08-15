@@ -19,11 +19,11 @@ CACHE_DIR.mkdir(exist_ok=True)
 
 # POS mapping
 POS_MAP = {
-    'n': 'பெயர்ச்சொல்',
-    'v': 'வினைச்சொல்',
-    'a': 'விளிப்பெயர்',
-    's': 'விளிப்பெயர் (சாட்டிலைட்)',
-    'r': 'வினையடை'
+    'n': 'Noun',
+    'v': 'Verb',
+    'a': 'Adjective',
+    's': 'Adjective (Satellite)',
+    'r': 'Adverb'
 }
 
 # Cached translation
@@ -66,7 +66,7 @@ st.markdown("""
 <style>
 .app-header {
     background: linear-gradient(90deg, #3498db, #2ecc71);
-    padding: 10px;
+    padding: 20px;
     border-radius: 12px;
     color: white;
     text-align: center;
@@ -99,7 +99,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown("<div class='app-header'><h1 style='margin:0'>கல்வி விதைகள் முளைக்கும் இடம்</h1><small>Suffix அடிப்படையில் சொற்களைத் தேடவும், அர்த்தங்களுடன் பார்க்கவும்</small></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Find and explore words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
 # Main container
 with st.container():
@@ -108,11 +108,11 @@ with st.container():
     # New row for input controls
     control_cols = st.columns(3)
     with control_cols[0]:
-        before_letters = st.number_input("இறுதிக்கு முன் உள்ள எழுத்துகள் (0 என்றால் எந்தவொரு எண்ணும்)", min_value=0, step=1, value=0)
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with control_cols[1]:
-        lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
+        lang_choice = st.radio("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
     with control_cols[2]:
-        max_threads = st.slider("Translation Threads (வேக கட்டுப்பாடு)", min_value=2, max_value=20, value=10)
+        max_threads = st.slider("Translation Threads (Speed Control)", min_value=2, max_value=20, value=10)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -120,12 +120,12 @@ with st.container():
     col1, col2 = st.columns([1,2], gap="large")
 
     with col1:
-        st.subheader("🔎 சொற்களைத் தேடு")
-        suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight")
+        st.subheader("🔎 Find Words")
+        suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
         matches = find_matches(all_words, suffix_input, before_letters)
 
-        st.markdown(f"**கிடைத்த மொத்த செற்கள்:** {len(matches)}")
+        st.markdown(f"**Total Words Found:** {len(matches)}")
 
         st.markdown("<div class='content-box'>", unsafe_allow_html=True)
         for w in matches:
@@ -133,7 +133,7 @@ with st.container():
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        st.subheader("📘சொற்களின் பொருள்கள்")
+        st.subheader("📘 Word Definitions")
 
         if matches:
             data_rows = []
@@ -141,31 +141,31 @@ with st.container():
                 syns = wordnet.synsets(word)
                 if not syns:
                     # Tamil column is added here to ensure it exists
-                    data_rows.append({"சொல்": word, "சொல் வகை": "-", "ஆங்கிலம்": "-", "தமிழ்": "-"})
+                    data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
                 else:
                     for syn in syns:
                         eng = syn.definition()
                         data_rows.append({
-                            "சொல்": word,
-                            "சொல் வகை": POS_MAP.get(syn.pos(), "பெயர்ச்சொல்"),
-                            "ஆங்கிலம்": eng,
-                            "தமிழ்": "-" # Ensure Tamil column is always present
+                            "Word": word,
+                            "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                            "English": eng,
+                            "Tamil": "-" # Ensure Tamil column is always present
                         })
 
             df_export = pd.DataFrame(data_rows)
 
             # Translate only if Tamil is needed
             if lang_choice != "English Only":
-                tamil_list = translate_list_parallel(df_export["ஆங்கிலம்"].tolist(), max_workers=max_threads)
-                df_export["தமிழ்"] = tamil_list
+                tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=max_threads)
+                df_export["Tamil"] = tamil_list
             else:
-                df_export["தமிழ்"] = "-"
+                df_export["Tamil"] = "-"
 
             # Filter columns
             if lang_choice == "English Only":
-                df_view = df_export[["சொல்", "சொல் வகை", "ஆங்கிலம்"]]
+                df_view = df_export[["Word", "Word Type", "English"]]
             elif lang_choice == "Tamil Only":
-                df_view = df_export[["சொல்", "சொல் வகை", "தமிழ்"]]
+                df_view = df_export[["Word", "Word Type", "Tamil"]]
             else:
                 df_view = df_export
 
@@ -174,11 +174,10 @@ with st.container():
             with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
                 df_export.to_excel(writer, index=False, sheet_name="Meanings")
             towrite.seek(0)
-            st.download_button("📥 EXCEL SHEET-ஆக பதிவிறக்கு", towrite, file_name="all_meanings.xlsx")
+            st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
 
             st.dataframe(df_view, height=450)
         else:
-            st.info("முடிவுகள் எதுவும் இல்லை.")
+            st.info("No results found.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
