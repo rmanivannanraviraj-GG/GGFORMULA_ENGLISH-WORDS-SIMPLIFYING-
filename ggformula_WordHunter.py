@@ -7,12 +7,24 @@ from deep_translator import GoogleTranslator
 from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
+import os
+
+# Set NLTK data path for Streamlit Cloud deployment
+# This helps with permission errors
+try:
+    if "STREAMLIT_CLOUD" in os.environ:
+        nltk_data_dir = "/tmp/nltk_data"
+        os.makedirs(nltk_data_dir, exist_ok=True)
+        nltk.data.path.append(nltk_data_dir)
+except Exception as e:
+    st.error(f"Failed to set NLTK data path: {e}")
 
 # Download WordNet data (only once)
 try:
     nltk.data.find('corpora/wordnet')
     nltk.data.find('corpora/omw-1.4')
-except nltk.downloader.DownloadError:
+except (nltk.downloader.DownloadError, LookupError):
+    st.info("NLTK தரவுகள் பதிவிறக்கப்படுகின்றன... இது சில நிமிடங்கள் ஆகலாம்.")
     nltk.download('wordnet', quiet=True)
     nltk.download('omw-1.4', quiet=True)
 
@@ -41,7 +53,6 @@ def translate_definitions(definitions, target_lang='ta'):
     """
     total_items = len(definitions)
     
-    # Use a placeholder for the progress bar
     progress_bar = st.progress(0, text="மொழிபெயர்க்கப்படுகிறது... தயவுசெய்து காத்திருக்கவும்.")
     
     def translate_with_progress(text, index):
@@ -55,7 +66,6 @@ def translate_definitions(definitions, target_lang='ta'):
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(translate_with_progress, definitions, range(total_items)))
     
-    # Hide progress bar after completion
     progress_bar.empty()
     return results
 
@@ -154,7 +164,6 @@ with col2:
     if matches:
         df_export = get_word_definitions(matches)
         
-        # Translate only if Tamil is needed
         if lang_choice != "English Only":
             definitions_to_translate = df_export["ஆங்கிலம்"].tolist()
             with st.spinner("மொழிபெயர்க்கப்படுகிறது..."):
@@ -163,7 +172,6 @@ with col2:
         else:
             df_export["தமிழ்"] = "-"
 
-        # Filter columns for display
         if lang_choice == "English Only":
             df_view = df_export[["சொல்", "சொல் வகை", "ஆங்கிலம்"]]
         elif lang_choice == "Tamil Only":
@@ -171,7 +179,6 @@ with col2:
         else:
             df_view = df_export
 
-        # Excel download button
         towrite = BytesIO()
         with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
             df_export.to_excel(writer, index=False, sheet_name="Meanings")
