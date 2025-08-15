@@ -89,7 +89,7 @@ with col1:
     suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight")
     matches = find_matches(all_words, suffix_input, before_letters)
 
-    st.markdown(f"**மொத்தமாக கண்ட சொற்கள்:** {len(matches)}")
+    st.markdown(f"**கிடைத்த மொத்த செற்கள்:** {len(matches)}")
 
     st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
     for w in matches:
@@ -97,7 +97,7 @@ with col1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
-    st.subheader("📘 அனைத்து சொற்களின் அர்த்தங்கள்")
+    st.subheader("📘 அனைத்து சொற்களின் பொருள்கள்")
 
     if matches:
         data_rows = []
@@ -141,4 +141,5 @@ with col2:
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
+
 
