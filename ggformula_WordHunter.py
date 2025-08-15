@@ -125,16 +125,15 @@ with st.container():
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
         matches = find_matches(all_words, suffix_input, before_letters)
         
-        st.markdown(f"**Total Words Found:** {len(matches)}")
-        
-        # Display the words in a scrollable container
-        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
-        if matches:
-            for w in matches:
-                st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
-        else:
-            st.info("No results found.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Display the words in a scrollable expander
+        with st.expander(f"Total Words Found: {len(matches)}", expanded=True):
+            st.markdown("<div class='content-box'>", unsafe_allow_html=True)
+            if matches:
+                for w in matches:
+                    st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+            else:
+                st.info("No results found.")
+            st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
@@ -159,7 +158,6 @@ with st.container():
             df_export = pd.DataFrame(data_rows)
 
             if lang_choice != "English Only":
-                # Ensure the 'English' column is used for translation
                 tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=max_threads)
                 df_export["Tamil"] = tamil_list
             else:
