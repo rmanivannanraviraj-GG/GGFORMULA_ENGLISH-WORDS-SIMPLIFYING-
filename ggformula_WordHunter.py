@@ -128,11 +128,11 @@ with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
     # New row for input controls - stacked on small screens
-    st.subheader("Settings")
-    st.write("---")
-    
-    before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
-    lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+    col_input1, col_input2 = st.columns(2)
+    with col_input1:
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
+    with col_input2:
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
     
     # The 'max_threads' slider has been removed as per your request
     # and the max_workers is now set to a fixed value in the function call.
