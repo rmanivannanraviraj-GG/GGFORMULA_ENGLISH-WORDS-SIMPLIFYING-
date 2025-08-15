@@ -79,7 +79,7 @@ with st.sidebar:
     max_threads = st.slider("Translation Threads (வேக கட்டுப்பாடு)", min_value=2, max_value=20, value=10)
 
 # Load all WordNet lemma names
-all_words = list(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
 
 # Layout
 col1, col2 = st.columns([1,2])
@@ -141,6 +141,7 @@ with col2:
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
+
 
 
 
