@@ -97,7 +97,7 @@ with col1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
-    st.subheader("📘 அனைத்து சொற்களின் பொருள்கள்")
+    st.subheader("📘சொற்களின் பொருள்கள்")
 
     if matches:
         data_rows = []
@@ -136,10 +136,11 @@ with col2:
         with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
             df_export.to_excel(writer, index=False, sheet_name="Meanings")
         towrite.seek(0)
-        st.download_button("📥 எக்செல் பதிவிறக்கு", towrite, file_name="all_meanings.xlsx")
+        st.download_button("📥 EXCEL SHEET-ஆக பதிவிறக்கு", towrite, file_name="all_meanings.xlsx")
 
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
+
 
 
