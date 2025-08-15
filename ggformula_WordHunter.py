@@ -82,23 +82,23 @@ body {
 .four-lines-container {
     margin-bottom: 25px;
 }
-.four-lines-top-red {
+.line-red {
     border-top: 1px solid red;
     height: 5px;
+    margin-bottom: 5px;
 }
-.four-lines-blue {
-    border-bottom: 1px solid blue;
+.line-blue {
+    border-top: 1px solid blue;
     height: 15px;
-}
-.four-lines-bottom-red {
-    border-bottom: 1px solid red;
-    height: 5px;
+    margin-bottom: 5px;
 }
 .practice-word {
     font-size: 28px;
     font-weight: bold;
     color: #333;
     letter-spacing: 2px;
+    position: relative;
+    top: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -171,10 +171,10 @@ def create_practice_sheet_html(words):
     
     for word in words_to_practice:
         html_content += f"<div class='four-lines-container'>"
-        html_content += f"<span class='practice-word'>{word}</span>"
-        for _ in range(3):
-            html_content += f"<div class='four-lines-blue'></div>"
-        html_content += f"<div class='four-lines-bottom-red'></div>"
+        html_content += f"<div class='line-red'></div>"
+        html_content += f"<div class='line-blue'></div>"
+        html_content += f"<div class='line-blue'></div>"
+        html_content += f"<div class='line-red'></div>"
         html_content += "</div>"
     
     html_content += "</div>"
