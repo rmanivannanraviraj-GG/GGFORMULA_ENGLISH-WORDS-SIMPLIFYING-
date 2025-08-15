@@ -145,9 +145,10 @@ with st.container():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Layout
-    col1, col2 = st.columns([1,2], gap="large")
+    # Layout for the main content sections
+    col1, col2, col3 = st.columns(3, gap="large")
 
+    # Column 1: Find Words
     with col1:
         st.subheader("🔎 Find Words")
         suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
@@ -156,25 +157,13 @@ with st.container():
         
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
-        # Display words in a scrollable table
         if matches:
             matches_df = pd.DataFrame(matches, columns=["Word"])
             st.dataframe(matches_df, height=450, use_container_width=True)
         else:
             st.info("No results found.")
-        
-        # New feature: Synonym Search with a DataFrame
-        st.subheader("🔍 Find Synonyms")
-        word_for_synonyms = st.text_input("Enter a word to find synonyms:", value="light")
-        if word_for_synonyms:
-            synonyms = find_synonyms(word_for_synonyms)
-            if synonyms:
-                synonyms_df = pd.DataFrame(synonyms, columns=["Synonyms"])
-                st.dataframe(synonyms_df, height=200, use_container_width=True)
-            else:
-                st.info("No synonyms found.")
-
-
+    
+    # Column 2: Word Definitions
     with col2:
         st.subheader("📘 Word Definitions")
 
@@ -218,5 +207,17 @@ with st.container():
             st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
         else:
             st.info("No results found.")
+
+    # Column 3: Find Synonyms
+    with col3:
+        st.subheader("🔍 Find Synonyms")
+        word_for_synonyms = st.text_input("Enter a word to find synonyms:", value="light")
+        if word_for_synonyms:
+            synonyms = find_synonyms(word_for_synonyms)
+            if synonyms:
+                synonyms_df = pd.DataFrame(synonyms, columns=["Synonyms"])
+                st.dataframe(synonyms_df, height=450, use_container_width=True)
+            else:
+                st.info("No synonyms found.")
 
     st.markdown("</div>", unsafe_allow_html=True)
