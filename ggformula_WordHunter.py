@@ -4,7 +4,7 @@ import pandas as pd
 from io import BytesIO
 from pathlib import Path
 from deep_translator import GoogleTranslator
-from nltk.corpus import wordnet
+from nltk.corpus import wordnet, brown, gutenberg
 import nltk
 from concurrent.futures import ThreadPoolExecutor
 import sys
@@ -17,6 +17,8 @@ sys.stderr.reconfigure(encoding='utf-8')
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+nltk.download('brown')
+nltk.download('gutenberg')
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -157,7 +159,19 @@ with st.container():
     col1, col2 = st.columns(2, gap="large")
     
     # Calculate matches once
-    all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+    
+    @st.cache_data
+    def get_all_words():
+        """Loads all words from WordNet, Brown, and Gutenberg corpora."""
+        words_from_wordnet = set(wordnet.all_lemma_names())
+        words_from_brown = set(brown.words())
+        words_from_gutenberg = set(gutenberg.words())
+        
+        all_words = words_from_wordnet.union(words_from_brown).union(words_from_gutenberg)
+        alphabetic_words = [w.lower() for w in all_words if w.isalpha()]
+        return sorted(set(alphabetic_words), key=lambda x: (len(x), x.lower()))
+
+    all_words = get_all_words()
     matches = find_matches(all_words, suffix_input, before_letters)
     
     # Column 1: Find Words
