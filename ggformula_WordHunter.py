@@ -134,8 +134,8 @@ with st.container():
     before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
     
-    # max_threads slider is re-added here if needed, but for simplicity, it's removed
-    # in this mobile-first design as it's a backend control not necessary for the user.
+    # The 'max_threads' slider has been removed as per your request
+    # and the max_workers is now set to a fixed value in the function call.
 
     st.markdown("<br>", unsafe_allow_html=True)
 
