@@ -48,22 +48,6 @@ st.markdown("""
     padding-right: 1rem;
 }
 </style>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-""", unsafe_allow_html=True)
-
-# JavaScript for Text-to-Speech pronunciation
-st.markdown("""
-<script>
-    function speakWord(word) {
-        if ('speechSynthesis' in window) {
-            var speech = new SpeechSynthesisUtterance(word);
-            speech.lang = 'en-US'; // Set language to English for pronunciation
-            window.speechSynthesis.speak(speech);
-        } else {
-            console.log('Web Speech API not supported');
-        }
-    }
-</script>
 """, unsafe_allow_html=True)
 
 # Streamlit page config
@@ -111,15 +95,9 @@ def make_highlight_html(word, suf):
     if suf and word.lower().endswith(suf.lower()):
         p = word[:-len(suf)]
         s = word[-len(suf):]
-        highlighted_word = f"<span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span>"
+        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
     else:
-        highlighted_word = f"<span>{word}</span>"
-
-    audio_icon = f"""
-    <i class="fas fa-volume-up" style="color: #3498db; cursor: pointer; margin-left: 10px;" onclick="speakWord('{word}')"></i>
-    """
-    
-    return f"<div style='font-size:20px; padding:6px; display:flex; align-items:center;'>{highlighted_word}{audio_icon}</div>"
+        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
 # Header
 st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Find and explore words with suffixes and meanings</small></div>", unsafe_allow_html=True)
