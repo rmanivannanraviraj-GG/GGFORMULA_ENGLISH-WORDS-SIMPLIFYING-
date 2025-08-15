@@ -67,21 +67,38 @@ body {
 .st-emotion-cache-1f8p3j0 > div > div > p {
     margin-top: 0;
 }
-/* CSS for the A4 practice sheet */
+
+/* CSS for the A4 practice sheet with 4-line design */
 .a4-paper {
     width: 210mm;
     height: 297mm;
     background: white;
     padding: 20mm;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
     font-family: 'Times New Roman', Times, serif;
     font-size: 24px;
     line-height: 2;
+    page-break-after: always;
 }
-.four-lines {
-    border-bottom: 1px dashed black;
-    height: 30px;
-    margin-bottom: 15px;
+.four-lines-container {
+    margin-bottom: 25px;
+}
+.four-lines-top-red {
+    border-top: 1px solid red;
+    height: 5px;
+}
+.four-lines-blue {
+    border-bottom: 1px solid blue;
+    height: 15px;
+}
+.four-lines-bottom-red {
+    border-bottom: 1px solid red;
+    height: 5px;
+}
+.practice-word {
+    font-size: 28px;
+    font-weight: bold;
+    color: #333;
+    letter-spacing: 2px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -126,6 +143,23 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
+# Find synonyms for a given word
+def find_synonyms(word):
+    synonyms = set()
+    for syn in wordnet.synsets(word):
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name().replace('_', ' '))
+    return list(synonyms)
+
+# Highlight suffix in word with audio icon
+def make_highlight_html(word, suf):
+    if suf and word.lower().endswith(suf.lower()):
+        p = word[:-len(suf)]
+        s = word[-len(suf):]
+        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
+    else:
+        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
+
 # Function to create the practice sheet HTML
 def create_practice_sheet_html(words):
     html_content = "<div class='a4-paper'>"
@@ -136,9 +170,12 @@ def create_practice_sheet_html(words):
     words_to_practice = words[:10]
     
     for word in words_to_practice:
-        html_content += f"<div style='margin-bottom: 20px;'><b>{word}</b></div>"
-        for i in range(4):
-            html_content += "<div class='four-lines'></div>"
+        html_content += f"<div class='four-lines-container'>"
+        html_content += f"<span class='practice-word'>{word}</span>"
+        for _ in range(3):
+            html_content += f"<div class='four-lines-blue'></div>"
+        html_content += f"<div class='four-lines-bottom-red'></div>"
+        html_content += "</div>"
     
     html_content += "</div>"
     return html_content
