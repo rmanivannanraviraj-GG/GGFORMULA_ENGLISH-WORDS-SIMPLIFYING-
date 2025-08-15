@@ -146,7 +146,8 @@ with st.container():
         
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
-        # Display words in multiple columns to avoid scrolling
+        # Display words in multiple columns inside a single scrollable container
+        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
         num_matches = len(matches)
         num_cols = 3  # Display words in 3 columns
         matches_per_col = (num_matches + num_cols - 1) // num_cols
@@ -157,6 +158,7 @@ with st.container():
             with cols[i]:
                 for w in matches[i * matches_per_col: (i + 1) * matches_per_col]:
                     st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
