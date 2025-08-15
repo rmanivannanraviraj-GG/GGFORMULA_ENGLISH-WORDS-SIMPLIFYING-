@@ -66,7 +66,7 @@ st.markdown("""
 <style>
 .app-header {
     background: linear-gradient(90deg, #3498db, #2ecc71);
-    padding: 20px;
+    padding: 10px;
     border-radius: 12px;
     color: white;
     text-align: center;
@@ -181,3 +181,4 @@ with st.container():
             st.info("முடிவுகள் எதுவும் இல்லை.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
