@@ -7,6 +7,12 @@ from deep_translator import GoogleTranslator
 from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
+import sys
+
+# Set default encoding to UTF-8
+# This fixes the 'invalid character' error
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 # Download WordNet data (only once)
 nltk.download('wordnet')
@@ -134,7 +140,7 @@ with st.container():
         
 
     with col2:
-        st.subheader("�சொற்களின் பொருள்கள்")
+        st.subheader("📘சொற்களின் பொருள்கள்")
 
         if matches:
             data_rows = []
@@ -178,4 +184,3 @@ with st.container():
             st.info("முடிவுகள் எதுவும் இல்லை.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-�
