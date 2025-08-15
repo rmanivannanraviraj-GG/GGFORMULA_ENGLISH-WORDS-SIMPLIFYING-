@@ -28,7 +28,7 @@ st.markdown("""
     padding: 30px;
     border-radius: 12px;
     margin-top: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4-box;
 }
 .content-box {
     background-color: #ffffff;
