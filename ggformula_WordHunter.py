@@ -104,6 +104,7 @@ with col2:
         for word in matches:
             syns = wordnet.synsets(word)
             if not syns:
+                # Tamil column is added here to ensure it exists
                 data_rows.append({"சொல்": word, "சொல் வகை": "-", "ஆங்கிலம்": "-", "தமிழ்": "-"})
             else:
                 for syn in syns:
@@ -111,7 +112,8 @@ with col2:
                     data_rows.append({
                         "சொல்": word,
                         "சொல் வகை": POS_MAP.get(syn.pos(), "பெயர்ச்சொல்"),
-                        "ஆங்கிலம்": eng
+                        "ஆங்கிலம்": eng,
+                        "தமிழ்": "-" # Ensure Tamil column is always present
                     })
 
         df_export = pd.DataFrame(data_rows)
@@ -141,7 +143,3 @@ with col2:
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
-
-
-
-
