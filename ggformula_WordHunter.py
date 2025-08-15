@@ -84,9 +84,28 @@ st.markdown("""
     padding: 20px;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
-    max-height: 450px;  /* Height adjusted to 450px */
+    max-height: 450px;
     overflow-y: auto;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.horizontal-scroll-container {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding: 10px 0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.horizontal-scroll-item {
+    flex: 0 0 auto;
+    background-color: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
 }
 .st-emotion-cache-1r65d8v {
     background: #f0f2f6;
@@ -125,15 +144,16 @@ with st.container():
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
         matches = find_matches(all_words, suffix_input, before_letters)
         
-        # Display the words in a scrollable expander
-        with st.expander(f"Total Words Found: {len(matches)}", expanded=True):
-            st.markdown("<div class='content-box'>", unsafe_allow_html=True)
-            if matches:
-                for w in matches:
-                    st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
-            else:
-                st.info("No results found.")
-            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(f"**Total Words Found:** {len(matches)}")
+        
+        # Display words in a horizontal scrollable container
+        st.markdown("<div class='horizontal-scroll-container'>", unsafe_allow_html=True)
+        if matches:
+            for w in matches:
+                st.markdown(f"<span class='horizontal-scroll-item'>{w}</span>", unsafe_allow_html=True)
+        else:
+            st.info("No results found.")
+        st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
