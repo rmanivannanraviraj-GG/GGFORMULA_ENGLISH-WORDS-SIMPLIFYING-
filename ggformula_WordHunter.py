@@ -11,9 +11,10 @@ import sys
 # For PDF generation
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import red, blue, black
+from reportlab.graphics.shapes import Line, Drawing
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -149,16 +150,17 @@ def create_pdf_content(words):
     story.append(Spacer(1, 0.5 * inch))
     
     for word in words[:10]:
-        # Add the word to trace
         story.append(Paragraph(f"<b>{word}</b>", word_style))
         story.append(Spacer(1, 0.1 * inch))
         
         # Adding the four lines for practice
-        # The lines are created using spaces and underscores for a simple effect
-        story.append(Paragraph("<u>" * 65, ParagraphStyle('LineRedTop', parent=styles['Normal'], textColor=red, fontSize=1)))
-        story.append(Paragraph("_" * 65, ParagraphStyle('LineBlueMiddle', parent=styles['Normal'], textColor=blue, fontSize=1)))
-        story.append(Paragraph("_" * 65, ParagraphStyle('LineBlueMiddle2', parent=styles['Normal'], textColor=blue, fontSize=1)))
-        story.append(Paragraph("<u>" * 65, ParagraphStyle('LineRedBottom', parent=styles['Normal'], textColor=red, fontSize=1)))
+        drawing = Drawing(doc.width, 45) # Create a drawing area
+        drawing.add(Line(0, 45, doc.width, 45, strokeColor=red)) # Top red line
+        drawing.add(Line(0, 30, doc.width, 30, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
+        drawing.add(Line(0, 15, doc.width, 15, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
+        drawing.add(Line(0, 0, doc.width, 0, strokeColor=red)) # Bottom red line
+        story.append(drawing)
+
         story.append(Spacer(1, 0.5 * inch))
 
     doc.build(story)
