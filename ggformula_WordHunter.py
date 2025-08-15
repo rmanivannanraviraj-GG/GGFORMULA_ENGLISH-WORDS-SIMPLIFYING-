@@ -140,15 +140,11 @@ with st.container():
         all_words = get_all_wordnet_lemmas()
         matches = find_matches(all_words, suffix_input, 0)
         
+        # Sort by length as the default
+        matches.sort(key=len)
+
         st.markdown(f"**கிடைத்த மொத்த சொற்கள்:** {len(matches)}")
         
-        sort_choice = st.radio("வரிசைப்படுத்து:", ["அகராதிப்படி", "நீளத்தின் அடிப்படையில்"])
-        
-        if sort_choice == "அகராதிப்படி":
-            matches.sort(key=str.lower)
-        else:
-            matches.sort(key=len)
-
         # வார்த்தைகளை ஒரு கட்டத்திற்குள் ஸ்க்ரோல் செய்யும்படி மாற்றி அமைக்கப்பட்டுள்ளது
         st.markdown("<div class='content-box'>", unsafe_allow_html=True)
         if matches:
