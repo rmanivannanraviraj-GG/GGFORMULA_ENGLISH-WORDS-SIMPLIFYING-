@@ -110,7 +110,7 @@ with st.container():
     with control_cols[0]:
         before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with control_cols[1]:
-        lang_choice = st.radio("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
 
     st.markdown("<br>", unsafe_allow_html=True)
 
