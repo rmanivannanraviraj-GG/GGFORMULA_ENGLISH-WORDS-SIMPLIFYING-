@@ -106,13 +106,11 @@ with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
 
     # New row for input controls
-    control_cols = st.columns(3)
+    control_cols = st.columns(2)
     with control_cols[0]:
         before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with control_cols[1]:
         lang_choice = st.radio("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
-    with control_cols[2]:
-        max_threads = st.slider("Translation Threads (Speed Control)", min_value=2, max_value=20, value=10)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -157,7 +155,7 @@ with st.container():
             df_export = pd.DataFrame(data_rows)
 
             if lang_choice != "English Only":
-                tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=max_threads)
+                tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
                 df_export["Tamil"] = tamil_list
             else:
                 df_export["Tamil"] = "-"
