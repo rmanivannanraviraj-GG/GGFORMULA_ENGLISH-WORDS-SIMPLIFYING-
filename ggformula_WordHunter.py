@@ -89,11 +89,17 @@ with col1:
     suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight")
     matches = find_matches(all_words, suffix_input, before_letters)
 
-    st.markdown(f"**கிடைத்த மொத்த செற்கள்:** {len(matches)}")
+    st.markdown(f"**கிடைத்த மொத்த சொற்கள்:** {len(matches)}")
 
-    st.markdown("<div style='max-height:520px; overflow:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
-    for w in matches:
-        st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+    # இந்தக் div-க்குள் தான் ஸ்க்ரோலிங் வசதி உள்ளது.
+    # max-height:520px; - அதிகபட்ச உயரம்
+    # overflow-y:auto; - உயரம் தாண்டும்போது தானாகவே ஸ்க்ரோலிங் பட்டி வரும்
+    st.markdown("<div style='max-height:520px; overflow-y:auto; padding:6px; background:#fff8e1; border-radius:6px;'>", unsafe_allow_html=True)
+    if matches:
+        for w in matches:
+            st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+    else:
+        st.info("முடிவுகள் எதுவும் இல்லை.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
@@ -141,6 +147,7 @@ with col2:
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
+
 
 
 
