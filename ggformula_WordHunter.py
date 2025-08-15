@@ -57,16 +57,31 @@ body {
     padding-left: 1rem;
     padding-right: 1rem;
 }
-.st-emotion-cache-1f8p3j0 { /* Adjusting padding for columns */
-    padding-left: 10px;
-    padding-right: 10px;
+.st-emotion-cache-1f8p3j0 > div {
+    /* To ensure columns are aligned at the top */
+    margin-top: 0;
 }
-
-/* New CSS for mobile-first design to stack controls on small screens */
-@media (max-width: 768px) {
-    .st-emotion-cache-1f8p3j0 > div {
-        flex-direction: column;
-    }
+.st-emotion-cache-1f8p3j0 > div > div > h3 {
+    margin-top: 0;
+}
+.st-emotion-cache-1f8p3j0 > div > div > p {
+    margin-top: 0;
+}
+/* CSS for the A4 practice sheet */
+.a4-paper {
+    width: 210mm;
+    height: 297mm;
+    background: white;
+    padding: 20mm;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 24px;
+    line-height: 2;
+}
+.four-lines {
+    border-bottom: 1px dashed black;
+    height: 30px;
+    margin-bottom: 15px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -111,26 +126,26 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
-# Find synonyms for a given word
-def find_synonyms(word):
-    synonyms = set()
-    for syn in wordnet.synsets(word):
-        for lemma in syn.lemmas():
-            synonyms.add(lemma.name().replace('_', ' '))
-    return list(synonyms)
-
-# Highlight suffix in word with audio icon
-def make_highlight_html(word, suf):
-    if suf and word.lower().endswith(suf.lower()):
-        p = word[:-len(suf)]
-        s = word[-len(suf):]
-        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
-    else:
-        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
+# Function to create the practice sheet HTML
+def create_practice_sheet_html(words):
+    html_content = "<div class='a4-paper'>"
+    html_content += "<h2>Word Practice Sheet</h2>"
+    html_content += "<hr style='border: 1px solid black;'>"
+    
+    # Generate a maximum of 10 words for the practice sheet
+    words_to_practice = words[:10]
+    
+    for word in words_to_practice:
+        html_content += f"<div style='margin-bottom: 20px;'><b>{word}</b></div>"
+        for i in range(4):
+            html_content += "<div class='four-lines'></div>"
+    
+    html_content += "</div>"
+    return html_content
 
 # --- Main Streamlit App Layout ---
 # Header
-st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and understand words with suffixes and meanings</small></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
 # Main container
 with st.container():
@@ -156,12 +171,7 @@ with st.container():
     def get_all_words():
         """Loads and combines all words from multiple corpora."""
         words_from_wordnet = set(wordnet.all_lemma_names())
-        words_from_brown = {w.lower() for w in brown.words() if w.isalpha()}
-        words_from_gutenberg = {w.lower() for w in gutenberg.words() if w.isalpha()}
-        
-        all_unique_words = words_from_wordnet.union(words_from_brown).union(words_from_gutenberg)
-
-        return sorted(list(all_unique_words), key=lambda x: (len(x), x.lower()))
+        return sorted(list(words_from_wordnet), key=lambda x: (len(x), x.lower()))
 
     all_words = get_all_words()
     matches = find_matches(all_words, suffix_input, before_letters)
@@ -175,6 +185,15 @@ with st.container():
         if matches:
             matches_df = pd.DataFrame(matches, columns=["Word"])
             st.dataframe(matches_df, height=450, use_container_width=True)
+            
+            # Button to download the practice sheet
+            html_content = create_practice_sheet_html(matches)
+            st.download_button(
+                label="Download A4 Practice Sheet",
+                data=html_content,
+                file_name="word_practice_sheet.html",
+                mime="text/html"
+            )
         else:
             st.info("No results found.")
     
@@ -224,5 +243,3 @@ with st.container():
             st.info("No results found.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
