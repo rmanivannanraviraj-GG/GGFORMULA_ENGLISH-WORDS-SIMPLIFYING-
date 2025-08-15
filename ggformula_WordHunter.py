@@ -130,7 +130,7 @@ def make_highlight_html(word, suf):
 
 # --- Main Streamlit App Layout ---
 # Header
-st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Find and explore words with suffixes and meanings</small></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small> "Learn spellings and understand words with suffixes and meanings"</small></div>", unsafe_allow_html=True)
 
 # Main container
 with st.container():
@@ -224,3 +224,4 @@ with st.container():
             st.info("No results found.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
