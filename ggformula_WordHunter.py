@@ -8,10 +8,13 @@ import nltk
 from concurrent.futures import ThreadPoolExecutor
 
 # Download WordNet data (only once)
-# Download WordNet data (only once)
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-
+try:
+    nltk.data.find('corpora/wordnet')
+    nltk.data.find('corpora/omw-1.4')
+except (nltk.downloader.DownloadError, LookupError):
+    st.info("NLTK தரவுகள் பதிவிறக்கப்படுகின்றன... இது சில நிமிடங்கள் ஆகலாம்.")
+    nltk.download('wordnet', quiet=True)
+    nltk.download('omw-1.4', quiet=True)
 
 # Streamlit page config
 st.set_page_config(page_title="சொல் தேடல்", layout="wide")
@@ -151,13 +154,16 @@ with st.container():
         else:
             matches.sort(key=len)
 
-        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
-        if matches:
-            for w in matches:
-                st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
-        else:
-            st.info("முடிவுகள் எதுவும் இல்லை.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Split the list into 3 columns to avoid long scrolling
+        match_cols = st.columns(3)
+        num_matches = len(matches)
+        col_size = (num_matches + 2) // 3
+        
+        for i, col in enumerate(match_cols):
+            with col:
+                for w in matches[i * col_size : (i + 1) * col_size]:
+                    st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+        
 
     with col2:
         st.subheader("📘 சொற்களின் பொருள்கள்")
@@ -182,9 +188,7 @@ with st.container():
             else:
                 df_view = df_export
 
-            st.markdown("<div class='content-box'>", unsafe_allow_html=True)
             st.dataframe(df_view, use_container_width=True, height=450)
-            st.markdown("</div>", unsafe_allow_html=True)
 
             # Excel download button positioned below the dataframe
             towrite = BytesIO()
