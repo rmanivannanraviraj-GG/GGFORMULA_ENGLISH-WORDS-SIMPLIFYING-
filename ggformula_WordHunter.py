@@ -111,6 +111,14 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
+# Find synonyms for a given word
+def find_synonyms(word):
+    synonyms = set()
+    for syn in wordnet.synsets(word):
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name().replace('_', ' '))
+    return list(synonyms)
+
 # Highlight suffix in word with audio icon
 def make_highlight_html(word, suf):
     if suf and word.lower().endswith(suf.lower()):
@@ -133,9 +141,6 @@ with st.container():
         before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with col_input2:
         lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
-    
-    # The 'max_threads' slider has been removed as per your request
-    # and the max_workers is now set to a fixed value in the function call.
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -157,6 +162,14 @@ with st.container():
         else:
             st.info("No results found.")
         
+        # New feature: Synonym Search
+        st.subheader("🔍 Find Synonyms")
+        word_for_synonyms = st.text_input("Enter a word to find synonyms:", value="light")
+        if word_for_synonyms:
+            synonyms = find_synonyms(word_for_synonyms)
+            st.write(f"Synonyms for '{word_for_synonyms}':")
+            st.write(", ".join(synonyms) if synonyms else "No synonyms found.")
+
 
     with col2:
         st.subheader("📘 Word Definitions")
