@@ -124,13 +124,17 @@ with st.container():
         suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
         matches = find_matches(all_words, suffix_input, before_letters)
-
-        st.markdown(f"**Total Words Found:** {len(matches)}")
-
-        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
-        for w in matches:
-            st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Display the words in a scrollable expander
+        with st.expander(f"Total Words Found: {len(matches)}", expanded=True):
+            st.markdown("<div class='content-box'>", unsafe_allow_html=True)
+            if matches:
+                for w in matches:
+                    st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+            else:
+                st.info("No results found.")
+            st.markdown("</div>", unsafe_allow_html=True)
+        
 
     with col2:
         st.subheader("📘 Word Definitions")
@@ -140,7 +144,6 @@ with st.container():
             for word in matches:
                 syns = wordnet.synsets(word)
                 if not syns:
-                    # Tamil column is added here to ensure it exists
                     data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
                 else:
                     for syn in syns:
@@ -149,19 +152,17 @@ with st.container():
                             "Word": word,
                             "Word Type": POS_MAP.get(syn.pos(), "Noun"),
                             "English": eng,
-                            "Tamil": "-" # Ensure Tamil column is always present
+                            "Tamil": "-"
                         })
 
             df_export = pd.DataFrame(data_rows)
 
-            # Translate only if Tamil is needed
             if lang_choice != "English Only":
                 tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=max_threads)
                 df_export["Tamil"] = tamil_list
             else:
                 df_export["Tamil"] = "-"
 
-            # Filter columns
             if lang_choice == "English Only":
                 df_view = df_export[["Word", "Word Type", "English"]]
             elif lang_choice == "Tamil Only":
@@ -169,14 +170,13 @@ with st.container():
             else:
                 df_view = df_export
 
-            # Excel download
+            st.dataframe(df_view, height=450)
+
             towrite = BytesIO()
             with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
                 df_export.to_excel(writer, index=False, sheet_name="Meanings")
             towrite.seek(0)
             st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
-
-            st.dataframe(df_view, height=450)
         else:
             st.info("No results found.")
 
