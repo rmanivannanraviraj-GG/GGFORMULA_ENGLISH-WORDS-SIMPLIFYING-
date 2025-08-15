@@ -4,7 +4,7 @@ import pandas as pd
 from io import BytesIO
 from pathlib import Path
 from deep_translator import GoogleTranslator
-from nltk.corpus import wordnet, brown, gutenberg
+from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
 import sys
@@ -17,8 +17,6 @@ sys.stderr.reconfigure(encoding='utf-8')
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
-nltk.download('brown')
-nltk.download('gutenberg')
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -59,15 +57,9 @@ body {
     padding-left: 1rem;
     padding-right: 1rem;
 }
-.st-emotion-cache-1f8p3j0 > div {
-    /* To ensure columns are aligned at the top */
-    margin-top: 0;
-}
-.st-emotion-cache-1f8p3j0 > div > div > h3 {
-    margin-top: 0;
-}
-.st-emotion-cache-1f8p3j0 > div > div > p {
-    margin-top: 0;
+.st-emotion-cache-1f8p3j0 { /* Adjusting padding for columns */
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
 /* New CSS for mobile-first design to stack controls on small screens */
@@ -138,7 +130,7 @@ def make_highlight_html(word, suf):
 
 # --- Main Streamlit App Layout ---
 # Header
-st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICITIONARY</h1><small>Learn spellings and understand words with suffixes and meanings</small></div>", unsafe_allow_html=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Find and explore words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
 # Main container
 with st.container():
@@ -232,5 +224,3 @@ with st.container():
             st.info("No results found.")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
