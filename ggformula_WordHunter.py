@@ -12,8 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# --- Header with CSS and JS for Pronunciation ---
-# CSS for styling
+# CSS Styling
 st.markdown("""
 <style>
 .app-header {
@@ -128,14 +127,12 @@ with st.container():
         
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
-        # Display words in a scrollable container
-        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
+        # Display words in a scrollable table
         if matches:
-            for w in matches:
-                st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+            matches_df = pd.DataFrame(matches, columns=["Word"])
+            st.dataframe(matches_df, height=450, use_container_width=True)
         else:
             st.info("No results found.")
-        st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
