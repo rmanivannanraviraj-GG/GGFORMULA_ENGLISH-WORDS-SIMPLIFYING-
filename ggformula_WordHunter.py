@@ -149,15 +149,14 @@ with st.container():
         else:
             matches.sort(key=len)
 
-        # Split the list into 3 columns to avoid long scrolling
-        match_cols = st.columns(3)
-        num_matches = len(matches)
-        col_size = (num_matches + 2) // 3
-        
-        for i, col in enumerate(match_cols):
-            with col:
-                for w in matches[i * col_size : (i + 1) * col_size]:
-                    st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+        # வார்த்தைகளை ஒரு கட்டத்திற்குள் ஸ்க்ரோல் செய்யும்படி மாற்றி அமைக்கப்பட்டுள்ளது
+        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
+        if matches:
+            for w in matches:
+                st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
+        else:
+            st.info("முடிவுகள் எதுவும் இல்லை.")
+        st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
@@ -183,6 +182,7 @@ with st.container():
             else:
                 df_view = df_export
 
+            # சொற்பொருட்களை ஸ்க்ரோல் செய்யும்படி உள்ளேயே அமைத்துள்ளோம்
             st.dataframe(df_view, use_container_width=True, height=450)
 
             # Excel download button positioned below the dataframe
@@ -201,5 +201,3 @@ with st.container():
             st.info("இங்கே முடிவுகள் காண்பிக்கப்படும்.")
     
     st.markdown("</div>", unsafe_allow_html=True)
-
-
