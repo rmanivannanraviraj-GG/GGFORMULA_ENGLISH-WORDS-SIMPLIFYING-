@@ -146,7 +146,7 @@ with st.container():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Layout for the main content sections
-    col1, col2, col3 = st.columns(3, gap="large")
+    col1, col2 = st.columns(2, gap="large")
 
     # Column 1: Find Words
     with col1:
@@ -208,17 +208,5 @@ with st.container():
             st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
         else:
             st.info("No results found.")
-
-    # Column 3: Find Synonyms
-    with col3:
-        st.subheader("🔍 Find Synonyms")
-        word_for_synonyms = st.text_input("Enter a word to find synonyms:", value="light")
-        if word_for_synonyms:
-            synonyms = find_synonyms(word_for_synonyms)
-            if synonyms:
-                synonyms_df = pd.DataFrame(synonyms, columns=["Synonyms"])
-                st.dataframe(synonyms_df, height=450, use_container_width=True)
-            else:
-                st.info("No synonyms found.")
 
     st.markdown("</div>", unsafe_allow_html=True)
