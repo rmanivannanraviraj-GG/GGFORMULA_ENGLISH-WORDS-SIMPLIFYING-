@@ -12,6 +12,60 @@ from concurrent.futures import ThreadPoolExecutor
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
+# --- Header with CSS and JS for Pronunciation ---
+# CSS for styling
+st.markdown("""
+<style>
+.app-header {
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    padding: 20px;
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.main-container {
+    background-color: #f0f2f6;
+    padding: 30px;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.content-box {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    max-height: 450px;
+    overflow-y: auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.st-emotion-cache-1r65d8v {
+    background: #f0f2f6;
+}
+.st-emotion-cache-12m3106 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+""", unsafe_allow_html=True)
+
+# JavaScript for Text-to-Speech pronunciation
+st.markdown("""
+<script>
+    function speakWord(word) {
+        if ('speechSynthesis' in window) {
+            var speech = new SpeechSynthesisUtterance(word);
+            speech.lang = 'en-US'; // Set language to English for pronunciation
+            window.speechSynthesis.speak(speech);
+        } else {
+            console.log('Web Speech API not supported');
+        }
+    }
+</script>
+""", unsafe_allow_html=True)
+
 # Streamlit page config
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 CACHE_DIR = Path("data")
@@ -52,70 +106,20 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
-# Highlight suffix in word
+# Highlight suffix in word with audio icon
 def make_highlight_html(word, suf):
     if suf and word.lower().endswith(suf.lower()):
         p = word[:-len(suf)]
         s = word[-len(suf):]
-        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
+        highlighted_word = f"<span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span>"
     else:
-        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
+        highlighted_word = f"<span>{word}</span>"
 
-# CSS Styling
-st.markdown("""
-<style>
-.app-header {
-    background: linear-gradient(90deg, #3498db, #2ecc71);
-    padding: 20px;
-    border-radius: 12px;
-    color: white;
-    text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-.main-container {
-    background-color: #f0f2f6;
-    padding: 30px;
-    border-radius: 12px;
-    margin-top: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-.content-box {
-    background-color: #ffffff;
-    padding: 20px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    max-height: 450px;
-    overflow-y: auto;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-.horizontal-scroll-container {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 10px;
-    padding: 10px 0;
-    background-color: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-.horizontal-scroll-item {
-    flex: 0 0 auto;
-    background-color: #f8f9fa;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-}
-.st-emotion-cache-1r65d8v {
-    background: #f0f2f6;
-}
-.st-emotion-cache-12m3106 {
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-</style>
-""", unsafe_allow_html=True)
+    audio_icon = f"""
+    <i class="fas fa-volume-up" style="color: #3498db; cursor: pointer; margin-left: 10px;" onclick="speakWord('{word}')"></i>
+    """
+    
+    return f"<div style='font-size:20px; padding:6px; display:flex; align-items:center;'>{highlighted_word}{audio_icon}</div>"
 
 # Header
 st.markdown("<div class='app-header'><h1 style='margin:0'>Word Explorer</h1><small>Find and explore words with suffixes and meanings</small></div>", unsafe_allow_html=True)
@@ -146,12 +150,14 @@ with st.container():
         
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
-        # Display words in a scrollable table
+        # Display words in a scrollable container
+        st.markdown("<div class='content-box'>", unsafe_allow_html=True)
         if matches:
-            matches_df = pd.DataFrame(matches, columns=["Word"])
-            st.dataframe(matches_df, height=450, use_container_width=True)
+            for w in matches:
+                st.markdown(make_highlight_html(w, suffix_input), unsafe_allow_html=True)
         else:
             st.info("No results found.")
+        st.markdown("</div>", unsafe_allow_html=True)
         
 
     with col2:
