@@ -18,32 +18,37 @@ sys.stderr.reconfigure(encoding='utf-8')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# CSS Styling
+# CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+body {
+    font-family: 'Roboto', sans-serif;
+}
 .app-header {
     background: linear-gradient(90deg, #3498db, #2ecc71);
     padding: 20px;
     border-radius: 12px;
     color: white;
     text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Reduced shadow */
+    margin-bottom: 20px;
 }
 .main-container {
     background-color: #f0f2f6;
-    padding: 30px;
+    padding: 20px; /* Adjusted padding */
     border-radius: 12px;
     margin-top: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow */
 }
 .content-box {
     background-color: #ffffff;
-    padding: 20px;
+    padding: 15px; /* Adjusted padding */
     border-radius: 8px;
     border: 1px solid #e0e0e0;
     max-height: 450px;
     overflow-y: auto;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Reduced shadow */
 }
 .st-emotion-cache-1r65d8v {
     background: #f0f2f6;
@@ -51,6 +56,10 @@ st.markdown("""
 .st-emotion-cache-12m3106 {
     padding-left: 1rem;
     padding-right: 1rem;
+}
+.st-emotion-cache-1f8p3j0 { /* Adjusting padding for columns */
+    padding-left: 10px;
+    padding-right: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
