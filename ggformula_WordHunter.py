@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
-
 # Streamlit page config
 st.set_page_config(page_title="சொல் தேடல்", layout="wide")
 
