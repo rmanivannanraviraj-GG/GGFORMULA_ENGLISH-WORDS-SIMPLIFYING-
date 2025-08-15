@@ -149,7 +149,7 @@ with st.container():
         suffix_input = st.text_input("Suffix (உதா: 'ight')", value="ight", help="நீங்கள் தேட விரும்பும் விகுதியை உள்ளிடவும்.")
         
         all_words = get_all_wordnet_lemmas()
-        matches = find_matches(all_words, suffix_input, 0)
+        matches = find_matches(all_words, suffix_input, before_letters)
         
         # Sort by length as the default
         matches.sort(key=len)
