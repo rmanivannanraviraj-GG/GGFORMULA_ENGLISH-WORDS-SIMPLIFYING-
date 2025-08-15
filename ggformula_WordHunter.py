@@ -155,6 +155,7 @@ with st.container():
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
         matches = find_matches(all_words, suffix_input, before_letters)
         
+        # Moved Total Words Found here
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
         if matches:
