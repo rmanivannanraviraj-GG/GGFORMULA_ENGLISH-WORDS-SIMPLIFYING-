@@ -11,6 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+
+
 # Streamlit page config
 st.set_page_config(page_title="சொல் தேடல்", layout="wide")
 
@@ -61,7 +63,7 @@ def find_matches(words: list, suffix: str, before_letters: int):
             word_length_before_suffix = len(w) - len(suf)
             if before_letters == 0 or word_length_before_suffix == before_letters:
                 matched.append(w)
-    return sorted(matched, key=len)
+    return matched
 
 def get_word_definitions(word_list: list):
     """Fetches all definitions for a list of words from WordNet."""
@@ -142,6 +144,13 @@ with st.container():
         
         st.markdown(f"**கிடைத்த மொத்த சொற்கள்:** {len(matches)}")
         
+        sort_choice = st.radio("வரிசைப்படுத்து:", ["அகராதிப்படி", "நீளத்தின் அடிப்படையில்"])
+        
+        if sort_choice == "அகராதிப்படி":
+            matches.sort(key=str.lower)
+        else:
+            matches.sort(key=len)
+
         st.markdown("<div class='content-box'>", unsafe_allow_html=True)
         if matches:
             for w in matches:
