@@ -73,7 +73,7 @@ st.markdown("<div class='app-header'><h1 style='margin:0'>கல்வி வி
 
 # Sidebar settings
 with st.sidebar:
-    st.header("🔧 அமைப்புகள்")
+    st.header("🔧 தேடுதலை எளிமையாக்கு")
     before_letters = st.number_input("இறுதிக்கு முன் உள்ள எழுத்துகள் (0 என்றால் எந்தவொரு எண்ணும்)", min_value=0, step=1, value=0)
     lang_choice = st.radio("அர்த்தம் காண்பிக்க:", ["English Only", "Tamil Only", "English + Tamil"])
     max_threads = st.slider("Translation Threads (வேக கட்டுப்பாடு)", min_value=2, max_value=20, value=10)
@@ -141,6 +141,7 @@ with col2:
         st.dataframe(df_view)
     else:
         st.info("முடிவுகள் எதுவும் இல்லை.")
+
 
 
 
