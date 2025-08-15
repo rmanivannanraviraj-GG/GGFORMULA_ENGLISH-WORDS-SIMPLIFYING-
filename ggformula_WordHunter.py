@@ -159,6 +159,7 @@ with st.container():
             df_export = pd.DataFrame(data_rows)
 
             if lang_choice != "English Only":
+                # Ensure the 'English' column is used for translation
                 tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=max_threads)
                 df_export["Tamil"] = tamil_list
             else:
