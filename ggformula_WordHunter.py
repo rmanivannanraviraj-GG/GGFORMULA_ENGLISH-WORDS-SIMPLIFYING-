@@ -147,10 +147,10 @@ def create_pdf_content(words):
     penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
     
     # We will create a style for the dotted words, but ReportLab doesn't support
-    # opacity directly on text, so we'll use a different font or color.
+    # opacity directly on text, so we'll use a different font or colour.
     # For this example, we'll use a slightly different style to represent 'opacity'.
     dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=12, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, alignment=TA_CENTER)
     
     story = []
     
@@ -329,3 +329,4 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
