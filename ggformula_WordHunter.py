@@ -192,7 +192,7 @@ def create_pdf_content(words):
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ]
 
-        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
+        story.append(Table(table_data, colWidths=[2*inch]*4, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
     # Footer
@@ -309,4 +309,5 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
