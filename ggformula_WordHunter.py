@@ -16,6 +16,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import red, blue, black
 from reportlab.graphics.shapes import Drawing, Line
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -24,6 +26,22 @@ sys.stderr.reconfigure(encoding='utf-8')
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
+
+# --- Register custom fonts with dynamic path ---
+try:
+    # Use the current working directory to locate the fonts
+    # This is a more robust way to handle file paths in different environments
+    script_dir = os.getcwd()
+    
+    # Construct the full paths to the font files
+    penmanship_font_path = os.path.join(script_dir, 'KGPrimaryPenmanship.ttf')
+    dots_font_path = os.path.join(script_dir, 'KGPrimaryDots.ttf')
+    
+    pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
+    pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
+except Exception as e:
+    st.error(f"Error registering fonts: {e}")
+    st.info("Please ensure 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' are in the same directory as the app script.")
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -140,10 +158,13 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    # Using default fonts
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
-    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
-    
+    try:
+        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
+        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
+    except Exception as e:
+        st.error(f"எழுத்துருக்களைப் பயன்படுத்த முடியவில்லை: {e}")
+        return None # Return None if fonts are not available
+
     story = []
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
@@ -171,38 +192,68 @@ with st.container():
     
     col_input1, col_input2 = st.columns(2)
     with col_input1:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
     with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
 
-    suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+    # Use session state to manage button clicks and trigger re-runs
+    if 'search_button_clicked' not in st.session_state:
+        st.session_state.search_button_clicked = False
     
-    st.markdown("<br>", unsafe_allow_html=True)
-
+    def set_search_state():
+        st.session_state.search_button_clicked = True
+        
+    def set_tracer_state():
+        st.session_state.tracer_button_clicked = True
+        
+    # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
-    
-    @st.cache_data
-    def get_all_words():
-        words_from_wordnet = set(wordnet.all_lemma_names())
-        return sorted(list(words_from_wordnet), key=lambda x: (len(x), x.lower()))
 
-    all_words = get_all_words()
-    matches = find_matches(all_words, suffix_input, before_letters)
-    
     with col1:
         st.subheader("🔎 Find Words")
-        # Display Total Words Found below subheader
-        st.markdown(f"**Total Words Found:** {len(matches)}")
-        
-        if matches:
-            matches_df = pd.DataFrame(matches, columns=["Word"])
-            st.dataframe(matches_df, height=450, use_container_width=True)
-        else:
-            st.info("No results found.")
+        with st.form("find_words_form"):
+            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+            search_button = st.form_submit_button(label='Search Words')
+
+        if search_button or st.session_state.search_button_clicked:
+            st.session_state.search_button_clicked = True
+            all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+            matches = find_matches(all_words, suffix_input, before_letters)
+            
+            st.markdown(f"**Total Words Found:** {len(matches)}")
+            
+            if matches:
+                matches_df = pd.DataFrame(matches, columns=["Word"])
+                st.dataframe(matches_df, height=450, use_container_width=True)
+            else:
+                st.info("No results found.")
 
     with col2:
-        st.subheader("📘 Word Definitions")
+        st.subheader("📝 Word Tracer Generator")
+        with st.form("word_tracer_form"):
+            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
+            tracer_button = st.form_submit_button(label='Generate PDF')
+            
+        if tracer_button:
+            words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
+            if words_for_tracer:
+                pdf_data = create_pdf_content(words_for_tracer)
+                if pdf_data:
+                    st.download_button(
+                        label="Download Practice Sheet as PDF",
+                        data=pdf_data,
+                        file_name="word_tracer_sheet.pdf",
+                        mime="application/pdf"
+                    )
 
+    # Word Definitions section is now below
+    st.markdown("---")
+    st.subheader("📘 Word Definitions")
+
+    if st.session_state.search_button_clicked:
+        all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+        matches = find_matches(all_words, st.session_state.suffix_input_form, st.session_state.before_letters_main)
+        
         if matches:
             data_rows = []
             for word in matches:
@@ -221,20 +272,20 @@ with st.container():
 
             df_export = pd.DataFrame(data_rows)
 
-            if lang_choice != "English Only":
+            if st.session_state.lang_choice_main != "English Only":
                 tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
                 df_export["Tamil"] = tamil_list
             else:
                 df_export["Tamil"] = "-"
 
-            if lang_choice == "English Only":
+            if st.session_state.lang_choice_main == "English Only":
                 df_view = df_export[["Word", "Word Type", "English"]]
-            elif lang_choice == "Tamil Only":
+            elif st.session_state.lang_choice_main == "Tamil Only":
                 df_view = df_export[["Word", "Word Type", "Tamil"]]
             else:
                 df_view = df_export
 
-            st.dataframe(df_view, height=450)
+            st.dataframe(df_view, height=450, use_container_width=True)
 
             towrite = BytesIO()
             with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
@@ -243,20 +294,7 @@ with st.container():
             st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
         else:
             st.info("No results found.")
-
-    st.markdown("---")
-    st.subheader("📝 Word Tracer Generator")
+    else:
+        st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
-    words_input = st.text_area("Enter words for practice (one per line):", height=150)
-    
-    if words_input:
-        words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
-        if words_for_tracer:
-            pdf_data = create_pdf_content(words_for_tracer)
-            if pdf_data:
-                st.download_button(
-                    label="Download Practice Sheet as PDF",
-                    data=pdf_data,
-                    file_name="word_tracer_sheet.pdf",
-                    mime="application/pdf"
-                )
+    st.markdown("</div>", unsafe_allow_html=True)
