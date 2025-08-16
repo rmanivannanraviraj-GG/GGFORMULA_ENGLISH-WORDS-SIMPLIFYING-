@@ -139,32 +139,25 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    
-    styles = getSampleStyleSheet()
     
     # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    penmanship_style = ParagraphStyle('Penmanship', fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    dotted_style = ParagraphStyle('Dotted', fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
     
-    # We will create a style for the dotted words, but ReportLab doesn't support
-    # opacity directly on text, so we'll use a different font or color.
-    # For this example, we'll use a slightly different style to represent 'opacity'.
-    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-
     story = []
-    
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    styles = getSampleStyleSheet()
+
     # Add Name and Date placeholder
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
     story.append(Spacer(1, 0.5 * inch))
-    
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
     words_per_page = 5
     
     for i in range(0, len(words), words_per_page):
-        # A4 paper can only hold about 5 words per page in this format
-        if i > 0 and i % words_per_page == 0:
+        if i > 0:
             story.append(PageBreak())
         
         page_words = words[i:i + words_per_page]
