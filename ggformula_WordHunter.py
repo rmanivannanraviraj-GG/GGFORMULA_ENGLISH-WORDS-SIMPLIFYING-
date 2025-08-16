@@ -141,7 +141,10 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    # Using default fonts to avoid file not found errors
+    # Register the default fonts
+    pdfmetrics.registerFont(TTFont('Helvetica-Bold', 'Helvetica-Bold.ttf'))
+    pdfmetrics.registerFont(TTFont('Courier', 'Courier.ttf'))
+    
     penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
     dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
     
@@ -156,9 +159,10 @@ def create_pdf_content(words):
         if i > 0 and i % words_per_page == 0:
             story.append(PageBreak())
         
-        story.append(Paragraph(word, penmanship_style))
+        story.append(Paragraph(f"<b>{word}</b>", penmanship_style))
         story.append(Spacer(1, 0.2 * inch))
         
+        # Adding the remaining lines with the dots font
         for _ in range(5):
             story.append(Paragraph(word, dots_style))
             story.append(Spacer(1, 0.2 * inch))
