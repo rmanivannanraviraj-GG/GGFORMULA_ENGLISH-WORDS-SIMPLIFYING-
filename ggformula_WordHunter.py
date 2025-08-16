@@ -150,7 +150,7 @@ def create_pdf_content(words):
     # opacity directly on text, so we'll use a different font or colour.
     # For this example, we'll use a slightly different style to represent 'opacity'.
     dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=22, alignment=TA_CENTER)
     
     story = []
     
@@ -329,4 +329,5 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
