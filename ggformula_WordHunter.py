@@ -150,6 +150,7 @@ def create_pdf_content(words):
     # opacity directly on text, so we'll use a different font or color.
     # For this example, we'll use a slightly different style to represent 'opacity'.
     dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
 
     story = []
     
@@ -160,35 +161,39 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    words_per_page = 5
+    words_per_page = 15
+    words_to_process = words[:words_per_page * 10]  # Process enough words for multiple pages
     
-    for i in range(0, len(words), words_per_page):
+    for i in range(0, len(words_to_process), words_per_page):
         if i > 0:
             story.append(PageBreak())
         
-        page_words = words[i:i + words_per_page]
+        page_words = words_to_process[i:i + words_per_page]
         
-        # Create a table for each word
-        for word in page_words:
-            table_data = []
-            
-            # Create a single row for the bold word
-            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for _ in range(1)] # Only one bold word per line
-            table_data.append(bold_row)
-            
-            # Create 5 rows with the dotted words
-            for _ in range(5):
-                clone_row = [Paragraph(word, dotted_style) for _ in range(1)] # One dotted word per line
-                table_data.append(clone_row)
+        num_rows_per_word = 6 # 1 bold row + 5 clone rows
+        rows_per_page = 5 * num_rows_per_word
+        table_data = [['' for _ in range(5)] for _ in range(rows_per_page)]
 
-            table_style = [
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-            ]
+        for j, word in enumerate(page_words):
+            col_index = j % 5
+            row_start = (j // 5) * num_rows_per_word
+            
+            # First row with bold word
+            table_data[row_start][col_index] = Paragraph(f"<b>{word}</b>", penmanship_style)
+            
+            # Subsequent rows with normal/dotted words
+            for k in range(1, num_rows_per_word):
+                table_data[row_start + k][col_index] = Paragraph(word, normal_style)
 
-            story.append(Table(table_data, colWidths=[6.5*inch], style=table_style)) # Adjust colWidth to fit the page
-            story.append(Spacer(1, 0.5 * inch))
-        
+
+        table_style = [
+            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+            ('BOX', (0,0), (-1,-1), 0.25, black),
+        ]
+
+        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
+        story.append(Spacer(1, 0.5 * inch))
+
     # Footer
     story.append(Spacer(1, 0.5 * inch))
     story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
