@@ -161,38 +161,14 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    words_per_page = 15
-    words_to_process = words[:words_per_page * 10]
-    
-    for i in range(0, len(words_to_process), words_per_page):
-        if i > 0:
-            story.append(PageBreak())
+    for word in words:
+        story.append(Paragraph(f"<b>{word}</b>", penmanship_style))
+        story.append(Spacer(1, 0.2 * inch))
         
-        page_words = words_to_process[i:i + words_per_page]
+        for _ in range(5):
+            story.append(Paragraph(word, dotted_style))
+            story.append(Spacer(1, 0.2 * inch))
         
-        table_data = []
-        
-        # Create a 5x3 table with a 5x6 cell structure for each word
-        cell_data = [[[] for _ in range(5)] for _ in range(3)]
-        
-        for j, word in enumerate(page_words):
-            col_index = j % 5
-            row_index = j // 5
-            
-            # First row with bold word
-            cell_data[row_index][col_index].append(Paragraph(f"<b>{word}</b>", penmanship_style))
-            cell_data[row_index][col_index].append(Spacer(1, 0.1 * inch))
-            
-            # Subsequent 5 rows with normal/dotted words
-            for _ in range(5):
-                cell_data[row_index][col_index].append(Paragraph(word, normal_style))
-                cell_data[row_index][col_index].append(Spacer(1, 0.05 * inch))
-                
-        story.append(Table(cell_data, colWidths=[1.5*inch]*5, rowHeights=[2.5*inch]*3, style=[
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('VALIGN', (0,0), (-1,-1), 'TOP')
-        ]))
         story.append(Spacer(1, 0.5 * inch))
 
     # Footer
@@ -308,4 +284,4 @@ with st.container():
     else:
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=Tr
