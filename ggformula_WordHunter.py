@@ -215,24 +215,45 @@ with st.container():
     col1, col2 = st.columns(2, gap="large")
 
     with col1:
-        st.subheader("🔎 Find Words")
-        with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
-            search_button = st.form_submit_button(label='Search Words')
+        st.subheader("📘 Word Definitions")
 
-        if search_button:
-            all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-            matches = find_matches(all_words, suffix_input, before_letters)
-            st.session_state['matches'] = matches
-            st.session_state['search_triggered'] = True
-            
-            st.markdown(f"**Total Words Found:** {len(matches)}")
-            
-            if matches:
-                matches_df = pd.DataFrame(matches, columns=["Word"])
-                st.dataframe(matches_df, height=450, use_container_width=True)
+        if matches:
+            data_rows = []
+            for word in matches:
+                syns = wordnet.synsets(word)
+                if not syns:
+                    data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
+                else:
+                    for syn in syns:
+                        eng = syn.definition()
+                        data_rows.append({
+                            "Word": word,
+                            "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                            "English": eng,
+                            "Tamil": "-"
+                        })
+
+            df_export = pd.DataFrame(data_rows)
+
+            if lang_choice != "English Only":
+                tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
+                df_export["Tamil"] = tamil_list
             else:
-                st.info("No results found.")
+                df_export["Tamil"] = "-"
+
+            if lang_choice == "English Only":
+                df_view = df_export[["Word", "Word Type", "English"]]
+            elif lang_choice == "Tamil Only":
+                df_view = df_export[["Word", "Word Type", "Tamil"]]
+            else:
+                df_view = df_export
+
+            st.dataframe(df_view, height=450)
+
+            towrite = BytesIO()
+            with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                df_export.to_excel(writer, index=False, sheet_name="Meanings")
+            towrite.seek(0)
 
     with col2:
         st.subheader("📝 Word Tracer Generator")
@@ -305,3 +326,4 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
