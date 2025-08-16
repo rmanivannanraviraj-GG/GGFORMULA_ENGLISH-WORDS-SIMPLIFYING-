@@ -232,9 +232,15 @@ with st.container():
 
     with col2:
         st.subheader("📝 Word Tracer Generator")
-        with st.form("word_tracer_form"):
+        
+        # Check if matches are available to pre-fill the text area
+        if st.session_state.get('search_triggered') and 'matches' in st.session_state:
+            matches_to_use = "\n".join(st.session_state['matches'])
+            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
+        else:
             words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-            tracer_button = st.form_submit_button(label='Generate PDF')
+        
+        tracer_button = st.button(label='Generate PDF')
             
         if tracer_button:
             words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
