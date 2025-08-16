@@ -191,6 +191,7 @@ with st.container():
     
     with col1:
         st.subheader("🔎 Find Words")
+        # Display Total Words Found below subheader
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
         if matches:
