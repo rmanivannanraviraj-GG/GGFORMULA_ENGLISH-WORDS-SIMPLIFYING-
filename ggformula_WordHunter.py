@@ -11,11 +11,10 @@ import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import red, blue, black
-from reportlab.graphics.shapes import Drawing, Line
+from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -26,28 +25,6 @@ sys.stderr.reconfigure(encoding='utf-8')
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
-
-# --- Register custom fonts with dynamic path ---
-try:
-    # Use the directory of the current script to locate the fonts
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    penmanship_font_path = os.path.join(script_dir, 'KGPrimaryPenmanship.ttf')
-    dots_font_path = os.path.join(script_dir, 'KGPrimaryDots.ttf')
-    
-    # Check if files exist before trying to register
-    if os.path.exists(penmanship_font_path) and os.path.exists(dots_font_path):
-        pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
-        pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
-    else:
-        st.warning("Font files 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' not found. Using default fonts.")
-        # If fonts are not found, fallback to a simpler font
-        penmanship_font_path = 'Helvetica-Bold'
-        dots_font_path = 'Courier'
-
-except Exception as e:
-    st.error(f"எழுத்துருக்களை பதிவு செய்வதில் பிழை: {e}")
-    penmanship_font_path = 'Helvetica-Bold'
-    dots_font_path = 'Courier'
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -164,20 +141,16 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    try:
-        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
-        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
-    except Exception as e:
-        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
-        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
-
+    # Using default fonts to avoid file not found errors
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
+    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
+    
     story = []
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
     words_per_page = 5
-    page_count = 0
     
     for i, word in enumerate(words):
         if i > 0 and i % words_per_page == 0:
@@ -208,16 +181,6 @@ with st.container():
     with col_input2:
         lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
 
-    # Use session state to manage button clicks and trigger re-runs
-    if 'search_button_clicked' not in st.session_state:
-        st.session_state.search_button_clicked = False
-    
-    def set_search_state():
-        st.session_state.search_button_clicked = True
-        
-    def set_tracer_state():
-        st.session_state.tracer_button_clicked = True
-        
     # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
 
@@ -240,7 +203,7 @@ with st.container():
                 st.dataframe(matches_df, height=450, use_container_width=True)
             else:
                 st.info("No results found.")
-    
+
     with col2:
         st.subheader("📝 Word Tracer Generator")
         with st.form("word_tracer_form"):
