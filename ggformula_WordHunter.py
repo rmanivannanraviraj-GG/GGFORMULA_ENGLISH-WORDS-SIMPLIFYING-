@@ -163,7 +163,8 @@ def create_pdf_content(words):
     words_per_page = 5
     
     for i in range(0, len(words), words_per_page):
-        if i > 0:
+        # A4 paper can only hold about 5 words per page in this format
+        if i > 0 and i % words_per_page == 0:
             story.append(PageBreak())
         
         page_words = words[i:i + words_per_page]
