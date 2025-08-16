@@ -183,6 +183,7 @@ def create_pdf_content(words):
 
         table_style = [
             ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+            ('BOX', (0,0), (-1,-1), 0.25, black),
             ('TOPPADDING', (0,0), (-1,-1), 10),
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
         ]
