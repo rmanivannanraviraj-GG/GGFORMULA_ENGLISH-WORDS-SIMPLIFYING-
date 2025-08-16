@@ -158,7 +158,7 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
     story.append(Spacer(1, 0.5 * inch))
     
-    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
+    story.append(Paragraph("<b>Created with G.GEORGE-Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
     words_per_page = 15
@@ -309,5 +309,6 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
