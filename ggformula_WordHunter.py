@@ -18,6 +18,7 @@ from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.colors import black, darkgrey
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -148,9 +149,13 @@ def create_pdf_content(words):
     # We will create a style for the dotted words, but ReportLab doesn't support
     # opacity directly on text, so we'll use a different font or color.
     # For this example, we'll use a slightly different style to represent 'opacity'.
-    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Helvetica', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
 
     story = []
+    
+    # Add Name and Date placeholder
+    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
+    story.append(Spacer(1, 0.5 * inch))
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
@@ -181,6 +186,10 @@ def create_pdf_content(words):
 
         story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
+
+    # Footer
+    story.append(Spacer(1, 0.5 * inch))
+    story.append(Paragraph("க. ஜார்ஜ் அகராதி - BRAIN-CHILD DICTIONARY-யைக்கொண்டு உருவாக்கப்பட்டது", styles['Normal']))
 
     doc.build(story)
     return buffer.getvalue()
@@ -223,15 +232,9 @@ with st.container():
 
     with col2:
         st.subheader("📝 Word Tracer Generator")
-        
-        # New feature: Use words from Find Words search
-        if st.session_state.get('search_triggered') and st.session_state.get('matches'):
-            matches_to_use = "\n".join(st.session_state['matches'])
-            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
-        else:
+        with st.form("word_tracer_form"):
             words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-        
-        tracer_button = st.button(label='Generate PDF')
+            tracer_button = st.form_submit_button(label='Generate PDF')
             
         if tracer_button:
             words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
@@ -278,7 +281,7 @@ with st.container():
 
                 if st.session_state.lang_choice_main == "English Only":
                     df_view = df_export[["Word", "Word Type", "English"]]
-                elif st.session_choice_main == "Tamil Only":
+                elif st.session_state.lang_choice_main == "Tamil Only":
                     df_view = df_export[["Word", "Word Type", "Tamil"]]
                 else:
                     df_view = df_export
