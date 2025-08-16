@@ -139,38 +139,38 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    
+    styles = getSampleStyleSheet()
     
     # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
-    dotted_style = ParagraphStyle('Dotted', fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
     
-    story = []
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    styles = getSampleStyleSheet()
+    # We will create a style for the dotted words, but ReportLab doesn't support
+    # opacity directly on text, so we'll use a different font or color.
+    # For this example, we'll use a slightly different style to represent 'opacity'.
+    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
 
+    story = []
+    
     # Add Name and Date placeholder
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
     story.append(Spacer(1, 0.5 * inch))
+    
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    words_per_page = 5
     
-    for i in range(0, len(words), words_per_page):
-        if i > 0:
-            story.append(PageBreak())
-        
-        page_words = words[i:i + words_per_page]
-        
+    for word in words:
         table_data = []
         
         # Create a single row for the bold words
-        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
+        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for _ in range(5)]
         table_data.append(bold_row)
         
         # Create 4 more rows with the dotted/normal style
         for _ in range(4):
-            clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            clone_row = [Paragraph(word, dotted_style) for _ in range(5)]
             table_data.append(clone_row)
 
         table_style = [
@@ -180,7 +180,7 @@ def create_pdf_content(words):
 
         story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
-
+        
     # Footer
     story.append(Spacer(1, 0.5 * inch))
     story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
