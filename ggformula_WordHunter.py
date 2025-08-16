@@ -11,7 +11,7 @@ import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Frame
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black
@@ -138,13 +138,13 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=1 * inch, bottomMargin=1 * inch)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
     
     styles = getSampleStyleSheet()
     
     # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
-    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=black)
     
     story = []
     
@@ -157,13 +157,21 @@ def create_pdf_content(words):
         if i > 0 and i % words_per_page == 0:
             story.append(PageBreak())
         
-        story.append(Paragraph(word, penmanship_style))
-        story.append(Spacer(1, 0.2 * inch))
+        # Creating a 5x5 grid-like structure
+        table_data = []
+        # Bold word row
+        table_data.append([Paragraph(f"<b>{word}</b>", penmanship_style) for _ in range(5)])
         
-        for _ in range(5):
-            story.append(Paragraph(word, dots_style))
-            story.append(Spacer(1, 0.2 * inch))
+        # Clone word rows
+        for _ in range(4):
+            table_data.append([Paragraph(word, dots_style) for _ in range(5)])
+            
+        table_style = [
+            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+            ('BOX', (0,0), (-1,-1), 0.25, black),
+        ]
         
+        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
     doc.build(story)
@@ -217,7 +225,7 @@ with st.container():
         
         tracer_button = st.button(label='Generate PDF')
             
-        if tracer_button and words_input:
+        if tracer_button:
             words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
             if words_for_tracer:
                 pdf_data = create_pdf_content(words_for_tracer)
