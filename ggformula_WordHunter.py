@@ -170,22 +170,26 @@ def create_pdf_content(words):
         
         page_words = words_to_process[i:i + words_per_page]
         
-        table_data = []
+        # Create a table for each page with 4 columns and 5 rows
+        table_data = [['' for _ in range(4)] for _ in range(5)]
         
-        # Create a single row for the bold words
-        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
-        table_data.append(bold_row)
+        for j, word in enumerate(page_words):
+            col_index = j % 4
+            row_index = j // 4
+            
+            cell_content = []
+            cell_content.append(Paragraph(f"<b>{word}</b>", penmanship_style))
+            for _ in range(4):
+                cell_content.append(Paragraph(word, dotted_style))
+                
+            table_data[row_index][col_index] = cell_content
         
-        # Create 4 more rows with the dotted/normal style
-        for _ in range(4):
-            clone_row = [Paragraph(word, dotted_style) for word in page_words]
-            table_data.append(clone_row)
-
         table_style = [
             ('INNERGRID', (0,0), (-1,-1), 0.25, black),
             ('BOX', (0,0), (-1,-1), 0.25, black),
             ('TOPPADDING', (0,0), (-1,-1), 10),
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ]
 
         story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
@@ -305,3 +309,4 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
