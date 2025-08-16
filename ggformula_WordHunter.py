@@ -140,33 +140,22 @@ def make_highlight_html(word, suf):
 def create_pdf_content(words):
     buffer = BytesIO()
 
-    # Define the document structure
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    
-    styles = getSampleStyleSheet()
-    
     # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    penmanship_style = ParagraphStyle('Penmanship', fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    dotted_style = ParagraphStyle('Dotted', fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
     
-    # We will create a style for the clone words, using a slightly smaller size or a different color to represent 'opacity'.
-    clone_style = ParagraphStyle('Clone', parent=styles['Normal'], fontName='Helvetica', fontSize=20, leading=24, textColor=darkgrey, alignment=TA_CENTER)
-
-    story = []
-
-    # Define a header and footer function
     def add_header_footer(canvas, doc):
         canvas.saveState()
         canvas.setFont('Helvetica', 10)
-        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 18, "Name: ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date: ____________________")
+        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 18, "<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________")
         canvas.drawString(doc.leftMargin, 0.75 * inch, "Created with G.GEORGE - BRAIN-CHILD DICTIONARY")
         canvas.restoreState()
 
-    # Add the header and footer to the document template
-    doc.pages.append(add_header_footer)
-    
-    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    styles = getSampleStyleSheet()
 
+    story = []
+    
     words_per_page = 15
     words_to_process = words[:words_per_page * 10]
     
@@ -178,48 +167,24 @@ def create_pdf_content(words):
         
         table_data = []
         
-        # Split words into 3 rows of 5 words each
-        row1_words = page_words[:5]
-        row2_words = page_words[5:10]
-        row3_words = page_words[10:15]
+        # Create a single row for the bold words
+        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
+        table_data.append(bold_row)
+        
+        # Create 4 more rows with the dotted/normal style
+        for _ in range(4):
+            clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            table_data.append(clone_row)
 
-        # Create table for each row of words
-        def create_word_table(word_list):
-            table_rows = []
-            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in word_list]
-            table_rows.append(bold_row)
-            for _ in range(5):
-                clone_row = [Paragraph(word, clone_style) for word in word_list]
-                table_rows.append(clone_row)
-            return table_rows
+        table_style = [
+            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+            ('BOX', (0,0), (-1,-1), 0.25, black),
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]
 
-        if row1_words:
-            story.append(Table(create_word_table(row1_words), colWidths=[1.5*inch]*5, style=[
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-                ('TOPPADDING', (0,0), (-1,-1), 10),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 0.5 * inch))
-            
-        if row2_words:
-            story.append(Table(create_word_table(row2_words), colWidths=[1.5*inch]*5, style=[
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-                ('TOPPADDING', (0,0), (-1,-1), 10),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 0.5 * inch))
-
-        if row3_words:
-            story.append(Table(create_word_table(row3_words), colWidths=[1.5*inch]*5, style=[
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-                ('TOPPADDING', (0,0), (-1,-1), 10),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 0.5 * inch))
-
+        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
+        story.append(Spacer(1, 0.5 * inch))
 
     doc.build(story, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
     return buffer.getvalue()
