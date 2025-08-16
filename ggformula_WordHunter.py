@@ -172,24 +172,47 @@ def create_pdf_content(words):
         
         table_data = []
         
-        # Create a single row for the bold words
-        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
-        table_data.append(bold_row)
-        
-        # Create 4 more rows with the dotted/normal style
-        for _ in range(4):
-            clone_row = [Paragraph(word, normal_style) for word in page_words]
-            table_data.append(clone_row)
+        # Split words into 3 rows of 5 words each
+        row1_words = page_words[:5]
+        row2_words = page_words[5:10]
+        row3_words = page_words[10:15]
 
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-        ]
+        # Create table for each row of words
+        def create_word_table(word_list):
+            table_rows = []
+            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in word_list]
+            table_rows.append(bold_row)
+            for _ in range(5):
+                clone_row = [Paragraph(word, normal_style) for word in word_list]
+                table_rows.append(clone_row)
+            return table_rows
 
-        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
-        story.append(Spacer(1, 0.5 * inch))
+        if row1_words:
+            story.append(Table(create_word_table(row1_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
+            
+        if row2_words:
+            story.append(Table(create_word_table(row2_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
+
+        if row3_words:
+            story.append(Table(create_word_table(row3_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
 
     # Footer
     story.append(Spacer(1, 0.5 * inch))
@@ -286,8 +309,6 @@ with st.container():
                 if st.session_state.lang_choice_main == "English Only":
                     df_view = df_export[["Word", "Word Type", "English"]]
                 elif st.session_state.lang_choice_main == "Tamil Only":
-                    tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
-                    df_export["Tamil"] = tamil_list
                     df_view = df_export[["Word", "Word Type", "Tamil"]]
                 else:
                     df_view = df_export
