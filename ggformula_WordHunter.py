@@ -11,7 +11,7 @@ import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Frame, PageTemplate
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black
@@ -139,45 +139,32 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    
-    styles = getSampleStyleSheet()
     
     # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    penmanship_style = ParagraphStyle('Penmanship', fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    dotted_style = ParagraphStyle('Dotted', fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
     
-    # We will create a style for the dotted words, but ReportLab doesn't support
-    # opacity directly on text, so we'll use a different font or color.
-    # For this example, we'll use a slightly different style to represent 'opacity'.
-    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=12, alignment=TA_CENTER)
-    footer_style = ParagraphStyle('Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=10, textColor=darkgrey, alignment=TA_CENTER)
-    
-    story = []
-
     def add_page_header_footer(canvas, doc):
         canvas.saveState()
         canvas.setFont('Helvetica', 10)
-        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 18, "<b>Name:</b> ____________________")
-        canvas.drawString(doc.leftMargin + 3.5 * inch, doc.height + doc.topMargin - 18, "<b>Date:</b> ____________________")
+        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 18, "<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________")
+        canvas.drawString(doc.leftMargin + 3.5 * inch, doc.height + doc.topMargin - 18, "") # Removed the second part of date/name
         
         canvas.setFont('Helvetica', 8)
         canvas.drawString(doc.leftMargin, 0.75 * inch, "Created with G.GEORGE - BRAIN-CHILD DICTIONARY")
         canvas.restoreState()
 
-    doc.pages.append(add_page_header_footer)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+
+    story = []
     
-    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
+    words_per_page = 5
     
-    words_per_page = 15
-    words_to_process = words[:words_per_page * 10]
-    
-    for i in range(0, len(words_to_process), words_per_page):
+    for i in range(0, len(words), words_per_page):
         if i > 0:
             story.append(PageBreak())
         
-        page_words = words_to_process[i:i + words_per_page]
+        page_words = words[i:i + words_per_page]
         
         table_data = []
         
@@ -187,7 +174,7 @@ def create_pdf_content(words):
         
         # Create 4 more rows with the dotted/normal style
         for _ in range(4):
-            clone_row = [Paragraph(word, normal_style) for word in page_words]
+            clone_row = [Paragraph(word, dotted_style) for word in page_words]
             table_data.append(clone_row)
 
         table_style = [
@@ -200,7 +187,7 @@ def create_pdf_content(words):
         story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
-    doc.build(story)
+    doc.build(story, onFirstPage=add_page_header_footer, onLaterPages=add_page_header_footer)
     return buffer.getvalue()
 
 
