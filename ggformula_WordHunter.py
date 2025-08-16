@@ -162,7 +162,7 @@ def create_pdf_content(words):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=1 * inch, bottomMargin=1 * inch)
     
-    styles = getSampleStyleStyleSheet()
+    styles = getSampleStyleSheet()
     
     try:
         penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
@@ -198,9 +198,9 @@ with st.container():
     
     col_input1, col_input2 = st.columns(2)
     with col_input1:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
     with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
 
     # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
@@ -208,12 +208,14 @@ with st.container():
     with col1:
         st.subheader("🔎 Find Words")
         with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
             search_button = st.form_submit_button(label='Search Words')
 
         if search_button:
             all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
             matches = find_matches(all_words, suffix_input, before_letters)
+            st.session_state['matches'] = matches
+            st.session_state['search_triggered'] = True
             
             st.markdown(f"**Total Words Found:** {len(matches)}")
             
@@ -226,7 +228,7 @@ with st.container():
     with col2:
         st.subheader("📝 Word Tracer Generator")
         with st.form("word_tracer_form"):
-            words_input = st.text_area("Enter words for practice (one per line):", height=150)
+            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
             tracer_button = st.form_submit_button(label='Generate PDF')
             
         if tracer_button:
@@ -245,50 +247,51 @@ with st.container():
     st.markdown("---")
     st.subheader("📘 Word Definitions")
 
-    if st.session_state.get('search_button_clicked'):
-        all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-        matches = find_matches(all_words, st.session_state.find_words_form_suffix_input, before_letters)
-        
-        if matches:
-            data_rows = []
-            for word in matches:
-                syns = wordnet.synsets(word)
-                if not syns:
-                    data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
+    if st.session_state.get('search_triggered'):
+        if 'matches' in st.session_state:
+            matches = st.session_state['matches']
+            if matches:
+                data_rows = []
+                for word in matches:
+                    syns = wordnet.synsets(word)
+                    if not syns:
+                        data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
+                    else:
+                        for syn in syns:
+                            eng = syn.definition()
+                            data_rows.append({
+                                "Word": word,
+                                "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                                "English": eng,
+                                "Tamil": "-"
+                            })
+
+                df_export = pd.DataFrame(data_rows)
+
+                if st.session_state.lang_choice_main != "English Only":
+                    tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
+                    df_export["Tamil"] = tamil_list
                 else:
-                    for syn in syns:
-                        eng = syn.definition()
-                        data_rows.append({
-                            "Word": word,
-                            "Word Type": POS_MAP.get(syn.pos(), "Noun"),
-                            "English": eng,
-                            "Tamil": "-"
-                        })
+                    df_export["Tamil"] = "-"
 
-            df_export = pd.DataFrame(data_rows)
+                if st.session_state.lang_choice_main == "English Only":
+                    df_view = df_export[["Word", "Word Type", "English"]]
+                elif st.session_state.lang_choice_main == "Tamil Only":
+                    df_view = df_export[["Word", "Word Type", "Tamil"]]
+                else:
+                    df_view = df_export
 
-            if lang_choice != "English Only":
-                tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
-                df_export["Tamil"] = tamil_list
+                st.dataframe(df_view, height=450, use_container_width=True)
+
+                towrite = BytesIO()
+                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
+                towrite.seek(0)
+                st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
             else:
-                df_export["Tamil"] = "-"
-
-            if lang_choice == "English Only":
-                df_view = df_export[["Word", "Word Type", "English"]]
-            elif lang_choice == "Tamil Only":
-                df_view = df_export[["Word", "Word Type", "Tamil"]]
-            else:
-                df_view = df_export
-
-            st.dataframe(df_view, height=450, use_container_width=True)
-
-            towrite = BytesIO()
-            with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                df_export.to_excel(writer, index=False, sheet_name="Meanings")
-            towrite.seek(0)
-            st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
+                st.info("No results found.")
         else:
-            st.info("No results found.")
+            st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     else:
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
