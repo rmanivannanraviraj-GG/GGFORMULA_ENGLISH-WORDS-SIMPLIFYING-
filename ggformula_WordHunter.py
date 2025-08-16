@@ -15,8 +15,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import red, blue, black
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.graphics.shapes import Drawing, Line
 
 # Set default encoding to UTF-8
@@ -26,22 +24,6 @@ sys.stderr.reconfigure(encoding='utf-8')
 # Download WordNet data (only once)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
-
-# --- Register custom fonts with dynamic path ---
-try:
-    # Use the current working directory to locate the fonts
-    # This is a more robust way to handle file paths in different environments
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Construct the full paths to the font files
-    penmanship_font_path = os.path.join(script_dir, 'KGPrimaryPenmanship.ttf')
-    dots_font_path = os.path.join(script_dir, 'KGPrimaryDots.ttf')
-    
-    pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
-    pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
-except Exception as e:
-    st.error(f"எழுத்துருக்களை பதிவு செய்வதில் பிழை: {e}")
-    st.info("தயவுசெய்து 'KGPrimaryPenmanship.ttf' மற்றும் 'KGPrimaryDots.ttf' கோப்புகள் செயலியின் ஸ்கிரிப்ட் இருக்கும் அதே கோப்புறையில் இருப்பதை உறுதி செய்யவும்.")
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -158,13 +140,10 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    try:
-        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
-        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
-    except Exception as e:
-        st.error(f"எழுத்துருக்களைப் பயன்படுத்த முடியவில்லை: {e}")
-        return None # Return None if fonts are not available
-
+    # Using default fonts
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
+    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
+    
     story = []
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
