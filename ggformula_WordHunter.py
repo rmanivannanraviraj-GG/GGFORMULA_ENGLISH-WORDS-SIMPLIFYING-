@@ -150,7 +150,7 @@ def create_pdf_content(words):
     # opacity directly on text, so we'll use a different font or color.
     # For this example, we'll use a slightly different style to represent 'opacity'.
     dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=22, alignment=TA_CENTER)
     
     story = []
     
@@ -158,7 +158,7 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
     story.append(Spacer(1, 0.5 * inch))
     
-    story.append(Paragraph("<b> G.GEORGE - BRAIN-CHILD DICTIONARY</b>", styles['Title']))
+    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
     words_per_page = 15
@@ -170,29 +170,25 @@ def create_pdf_content(words):
         
         page_words = words_to_process[i:i + words_per_page]
         
-        # Create a table for each page with 4 columns and 5 rows
-        table_data = [['' for _ in range(4)] for _ in range(5)]
+        table_data = []
         
-        for j, word in enumerate(page_words):
-            col_index = j % 4
-            row_index = j // 4
-            
-            cell_content = []
-            cell_content.append(Paragraph(f"<b>{word}</b>", penmanship_style))
-            for _ in range(4):
-                cell_content.append(Paragraph(word, normal_style))
-                
-            table_data[row_index][col_index] = cell_content
+        # Create a single row for the bold words
+        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
+        table_data.append(bold_row)
         
+        # Create 4 more rows with the dotted/normal style
+        for _ in range(4):
+            clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            table_data.append(clone_row)
+
         table_style = [
             ('INNERGRID', (0,0), (-1,-1), 0.25, black),
             ('BOX', (0,0), (-1,-1), 0.25, black),
             ('TOPPADDING', (0,0), (-1,-1), 10),
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ]
 
-        story.append(Table(table_data, colWidths=[2*inch]*4, style=table_style))
+        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
     # Footer
@@ -309,10 +305,3 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
-
-
-
-
