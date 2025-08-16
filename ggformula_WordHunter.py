@@ -11,14 +11,13 @@ import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black
+from reportlab.lib.colors import red, blue, black
+from reportlab.graphics.shapes import Drawing, Line
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.colors import black, darkgrey
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -139,77 +138,53 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=1 * inch, bottomMargin=1 * inch)
     
     styles = getSampleStyleSheet()
     
-    # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
-    
-    # We will create a style for the dotted words, but ReportLab doesn't support
-    # opacity directly on text, so we'll use a different font or color.
-    # For this example, we'll use a slightly different style to represent 'opacity'.
-    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=22, alignment=TA_CENTER)
+    word_style = ParagraphStyle('WordStyle', parent=styles['Normal'], fontSize=20, leading=20, textColor=black, spaceAfter=20)
     
     story = []
     
-    # Add Name and Date placeholder
-    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
+    # Header for the PDF
+    story.append(Paragraph("<b>Neat Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
-    
-    words_per_page = 15
-    words_to_process = words[:words_per_page * 10]
-    
-    for i in range(0, len(words_to_process), words_per_page):
-        if i > 0:
-            story.append(PageBreak())
+    for word in words[:10]:
+        story.append(Paragraph(f"<b>{word}</b>", word_style))
+        story.append(Spacer(1, 0.1 * inch))
         
-        page_words = words_to_process[i:i + words_per_page]
-        
-        table_data = []
-        
-        # Create a single row for the bold words
-        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
-        table_data.append(bold_row)
-        
-        # Create 4 more rows with the dotted/normal style
-        for _ in range(4):
-            clone_row = [Paragraph(word, normal_style) for word in page_words]
-            table_data.append(clone_row)
+        # Adding the four lines for practice
+        drawing = Drawing(doc.width, 45) # Create a drawing area
+        drawing.add(Line(0, 45, doc.width, 45, strokeColor=red)) # Top red line
+        drawing.add(Line(0, 30, doc.width, 30, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
+        drawing.add(Line(0, 15, doc.width, 15, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
+        drawing.add(Line(0, 0, doc.width, 0, strokeColor=red)) # Bottom red line
+        story.append(drawing)
 
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-        ]
-
-        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
-
-    # Footer
-    story.append(Spacer(1, 0.5 * inch))
-    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
 
     doc.build(story)
     return buffer.getvalue()
 
 
 # --- Main Streamlit App Layout ---
+# Header
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
+# Main container
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
     col_input1, col_input2 = st.columns(2)
     with col_input1:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+
+    suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
@@ -217,12 +192,12 @@ with st.container():
     with col1:
         st.subheader("🔎 Find Words")
         with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+            suffix_input_form = st.text_input("Suffix (e.g., 'ight')", value="ight")
             search_button = st.form_submit_button(label='Search Words')
 
         if search_button:
             all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-            matches = find_matches(all_words, suffix_input, before_letters)
+            matches = find_matches(all_words, suffix_input_form, before_letters)
             st.session_state['matches'] = matches
             st.session_state['search_triggered'] = True
             
@@ -237,16 +212,9 @@ with st.container():
     with col2:
         st.subheader("📝 Word Tracer Generator")
         
-        # Check if matches are available to pre-fill the text area
-        if st.session_state.get('search_triggered') and 'matches' in st.session_state:
-            matches_to_use = "\n".join(st.session_state['matches'])
-            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
-        else:
-            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
+        words_input = st.text_area("Enter words for practice (one per line):", height=150)
         
-        tracer_button = st.button(label='Generate PDF')
-            
-        if tracer_button:
+        if st.button(label='Generate PDF'):
             words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
             if words_for_tracer:
                 pdf_data = create_pdf_content(words_for_tracer)
@@ -283,9 +251,15 @@ with st.container():
 
                 df_export = pd.DataFrame(data_rows)
 
-                if st.session_state.lang_choice_main == "English Only":
+                if lang_choice != "English Only":
+                    tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
+                    df_export["Tamil"] = tamil_list
+                else:
+                    df_export["Tamil"] = "-"
+
+                if lang_choice == "English Only":
                     df_view = df_export[["Word", "Word Type", "English"]]
-                elif st.session_state.lang_choice_main == "Tamil Only":
+                elif lang_choice == "Tamil Only":
                     df_view = df_export[["Word", "Word Type", "Tamil"]]
                 else:
                     df_view = df_export
