@@ -161,14 +161,34 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    for word in words:
-        story.append(Paragraph(f"<b>{word}</b>", penmanship_style))
-        story.append(Spacer(1, 0.2 * inch))
+    words_per_page = 15
+    words_to_process = words[:words_per_page * 10]
+    
+    for i in range(0, len(words_to_process), words_per_page):
+        if i > 0:
+            story.append(PageBreak())
         
-        for _ in range(5):
-            story.append(Paragraph(word, dotted_style))
-            story.append(Spacer(1, 0.2 * inch))
+        page_words = words_to_process[i:i + words_per_page]
         
+        table_data = []
+        
+        # Create a single row for the bold words
+        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
+        table_data.append(bold_row)
+        
+        # Create 4 more rows with the dotted/normal style
+        for _ in range(4):
+            clone_row = [Paragraph(word, normal_style) for word in page_words]
+            table_data.append(clone_row)
+
+        table_style = [
+            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+            ('BOX', (0,0), (-1,-1), 0.25, black),
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]
+
+        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
     # Footer
