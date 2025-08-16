@@ -11,7 +11,7 @@ import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Frame, PageTemplate
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import black
@@ -139,22 +139,27 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
-
-    # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
-    dotted_style = ParagraphStyle('Dotted', fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    
-    def add_header_footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFont('Helvetica', 10)
-        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 18, "<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________")
-        canvas.drawString(doc.leftMargin, 0.75 * inch, "Created with G.GEORGE - BRAIN-CHILD DICTIONARY")
-        canvas.restoreState()
-
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    
     styles = getSampleStyleSheet()
-
+    
+    # Using default fonts to avoid file not found errors
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    
+    # We will create a style for the dotted words, but ReportLab doesn't support
+    # opacity directly on text, so we'll use a different font or color.
+    # For this example, we'll use a slightly different style to represent 'opacity'.
+    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=12, alignment=TA_CENTER)
+    
     story = []
+    
+    # Add Name and Date placeholder
+    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
+    story.append(Spacer(1, 0.5 * inch))
+    
+    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
+    story.append(Spacer(1, 0.5 * inch))
     
     words_per_page = 15
     words_to_process = words[:words_per_page * 10]
@@ -167,26 +172,54 @@ def create_pdf_content(words):
         
         table_data = []
         
-        # Create a single row for the bold words
-        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
-        table_data.append(bold_row)
-        
-        # Create 4 more rows with the dotted/normal style
-        for _ in range(4):
-            clone_row = [Paragraph(word, dotted_style) for word in page_words]
-            table_data.append(clone_row)
+        # Split words into 3 rows of 5 words each
+        row1_words = page_words[:5]
+        row2_words = page_words[5:10]
+        row3_words = page_words[10:15]
 
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-        ]
+        # Create table for each row of words
+        def create_word_table(word_list):
+            table_rows = []
+            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in word_list]
+            table_rows.append(bold_row)
+            for _ in range(5):
+                clone_row = [Paragraph(word, normal_style) for word in word_list]
+                table_rows.append(clone_row)
+            return table_rows
 
-        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
-        story.append(Spacer(1, 0.5 * inch))
+        if row1_words:
+            story.append(Table(create_word_table(row1_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
+            
+        if row2_words:
+            story.append(Table(create_word_table(row2_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
 
-    doc.build(story, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
+        if row3_words:
+            story.append(Table(create_word_table(row3_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
+
+
+    # Footer
+    story.append(Spacer(1, 0.5 * inch))
+    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
+
+    doc.build(story)
     return buffer.getvalue()
 
 
