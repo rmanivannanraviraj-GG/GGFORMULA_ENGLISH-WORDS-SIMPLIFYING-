@@ -189,7 +189,7 @@ def create_pdf_content(words):
 
     # Footer
     story.append(Spacer(1, 0.5 * inch))
-    story.append(Paragraph("க. ஜார்ஜ் அகராதி - BRAIN-CHILD DICTIONARY-யைக்கொண்டு உருவாக்கப்பட்டது", styles['Normal']))
+    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
 
     doc.build(story)
     return buffer.getvalue()
