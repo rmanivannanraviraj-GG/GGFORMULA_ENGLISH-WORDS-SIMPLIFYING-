@@ -146,8 +146,11 @@ def create_pdf_content(words):
     # Using default fonts to avoid file not found errors
     penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
     
-    # Using a different style to represent 'opacity'
+    # We will create a style for the dotted words, but ReportLab doesn't support
+    # opacity directly on text, so we'll use a different font or color.
+    # For this example, we'll use a slightly different style to represent 'opacity'.
     dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=22, alignment=TA_CENTER)
     
     story = []
     
