@@ -170,27 +170,24 @@ def create_pdf_content(words):
         
         page_words = words_to_process[i:i + words_per_page]
         
-        # Create 5x3 table with a 5x6 cell structure for each word
-        cell_data = [[[] for _ in range(5)] for _ in range(3)]
+        table_data = []
         
-        for j, word in enumerate(page_words):
-            col_index = j % 5
-            row_index = j // 5
-            
-            # First row with bold word
-            cell_data[row_index][col_index].append(Paragraph(f"<b>{word}</b>", penmanship_style))
-            cell_data[row_index][col_index].append(Spacer(1, 0.1 * inch))
-            
-            # Subsequent 5 rows with normal/dotted words
-            for _ in range(5):
-                cell_data[row_index][col_index].append(Paragraph(word, dotted_style))
-                cell_data[row_index][col_index].append(Spacer(1, 0.05 * inch))
+        # Create a single row for the bold words
+        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
+        table_data.append(bold_row)
+        
+        # Create 4 more rows with the dotted/normal style
+        for _ in range(4):
+            clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            table_data.append(clone_row)
 
-        story.append(Table(cell_data, colWidths=[1.5*inch]*5, rowHeights=[2.5*inch]*3, style=[
+        table_style = [
             ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('VALIGN', (0,0), (-1,-1), 'TOP')
-        ]))
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]
+
+        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
     # Footer
