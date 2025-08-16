@@ -7,18 +7,14 @@ from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
 import sys
-import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.colors import black, darkgrey
+from reportlab.lib.colors import red, blue, black
+from reportlab.graphics.shapes import Line, Drawing
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -41,24 +37,24 @@ body {
     border-radius: 12px;
     color: white;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Reduced shadow */
     margin-bottom: 20px;
 }
 .main-container {
     background-color: #f0f2f6;
-    padding: 20px;
+    padding: 20px; /* Adjusted padding */
     border-radius: 12px;
     margin-top: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow */
 }
 .content-box {
     background-color: #ffffff;
-    padding: 15px;
+    padding: 15px; /* Adjusted padding */
     border-radius: 8px;
     border: 1px solid #e0e0e0;
     max-height: 450px;
     overflow-y: auto;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Reduced shadow */
 }
 .st-emotion-cache-1r65d8v {
     background: #f0f2f6;
@@ -68,6 +64,7 @@ body {
     padding-right: 1rem;
 }
 .st-emotion-cache-1f8p3j0 > div {
+    /* To ensure columns are aligned at the top */
     margin-top: 0;
 }
 .st-emotion-cache-1f8p3j0 > div > div > h3 {
@@ -75,6 +72,13 @@ body {
 }
 .st-emotion-cache-1f8p3j0 > div > div > p {
     margin-top: 0;
+}
+
+/* New CSS for mobile-first design to stack controls on small screens */
+@media (max-width: 768px) {
+    .st-emotion-cache-1f8p3j0 > div {
+        flex-direction: column;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -139,193 +143,136 @@ def make_highlight_html(word, suf):
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=1 * inch, bottomMargin=1 * inch)
     
     styles = getSampleStyleSheet()
     
-    # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
-    
-    # We will create a style for the dotted words, but ReportLab doesn't support
-    # opacity directly on text, so we'll use a different font or color.
-    # For this example, we'll use a slightly different style to represent 'opacity'.
-    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=12, alignment=TA_CENTER)
+    word_style = ParagraphStyle('WordStyle', parent=styles['Normal'], fontSize=20, leading=20, textColor=black, spaceAfter=20)
     
     story = []
     
-    # Add Name and Date placeholder
-    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
+    # Header for the PDF
+    story.append(Paragraph("<b>Neat Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
-    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
-    
-    words_per_page = 15
-    words_to_process = words[:words_per_page * 10]
-    
-    for i in range(0, len(words_to_process), words_per_page):
-        if i > 0:
-            story.append(PageBreak())
+    for word in words[:10]:
+        story.append(Paragraph(f"<b>{word}</b>", word_style))
+        story.append(Spacer(1, 0.1 * inch))
         
-        page_words = words_to_process[i:i + words_per_page]
-        
-        table_data = []
-        
-        # Split words into 3 rows of 5 words each
-        row1_words = page_words[:5]
-        row2_words = page_words[5:10]
-        row3_words = page_words[10:15]
+        # Adding the four lines for practice
+        drawing = Drawing(doc.width, 45) # Create a drawing area
+        drawing.add(Line(0, 45, doc.width, 45, strokeColor=red)) # Top red line
+        drawing.add(Line(0, 30, doc.width, 30, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
+        drawing.add(Line(0, 15, doc.width, 15, strokeColor=blue, strokeDashArray=[2,2])) # Middle blue dashed line
+        drawing.add(Line(0, 0, doc.width, 0, strokeColor=red)) # Bottom red line
+        story.append(drawing)
 
-        # Create table for each row of words
-        def create_word_table(word_list):
-            table_rows = []
-            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in word_list]
-            table_rows.append(bold_row)
-            for _ in range(5):
-                clone_row = [Paragraph(word, normal_style) for word in word_list]
-                table_rows.append(clone_row)
-            return table_rows
-
-        if row1_words:
-            story.append(Table(create_word_table(row1_words), colWidths=[1.5*inch]*5, style=[
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-                ('TOPPADDING', (0,0), (-1,-1), 10),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 0.5 * inch))
-            
-        if row2_words:
-            story.append(Table(create_word_table(row2_words), colWidths=[1.5*inch]*5, style=[
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-                ('TOPPADDING', (0,0), (-1,-1), 10),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 0.5 * inch))
-
-        if row3_words:
-            story.append(Table(create_word_table(row3_words), colWidths=[1.5*inch]*5, style=[
-                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-                ('BOX', (0,0), (-1,-1), 0.25, black),
-                ('TOPPADDING', (0,0), (-1,-1), 10),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ]))
-            story.append(Spacer(1, 0.5 * inch))
-
-
-    # Footer
-    story.append(Spacer(1, 0.5 * inch))
-    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
+        story.append(Spacer(1, 0.5 * inch))
 
     doc.build(story)
     return buffer.getvalue()
 
 
 # --- Main Streamlit App Layout ---
+# Header
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
+# Main container
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
+    # All input controls are now at the top
     col_input1, col_input2 = st.columns(2)
     with col_input1:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
+
+    suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
+    
+    # Calculate matches once
+    @st.cache_data
+    def get_all_words():
+        words_from_wordnet = set(wordnet.all_lemma_names())
+        return sorted(list(words_from_wordnet), key=lambda x: (len(x), x.lower()))
 
+    all_words = get_all_words()
+    matches = find_matches(all_words, suffix_input, before_letters)
+    
+    # Column 1: Find Words
     with col1:
         st.subheader("🔎 Find Words")
-        with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
-            search_button = st.form_submit_button(label='Search Words')
+        # Display Total Words Found below subheader
+        st.markdown(f"**Total Words Found:** {len(matches)}")
+        
+        if matches:
+            matches_df = pd.DataFrame(matches, columns=["Word"])
+            st.dataframe(matches_df, height=450, use_container_width=True)
+        else:
+            st.info("No results found.")
 
-        if search_button:
-            all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-            matches = find_matches(all_words, suffix_input, before_letters)
-            st.session_state['matches'] = matches
-            st.session_state['search_triggered'] = True
-            
-            st.markdown(f"**Total Words Found:** {len(matches)}")
-            
-            if matches:
-                matches_df = pd.DataFrame(matches, columns=["Word"])
-                st.dataframe(matches_df, height=450, use_container_width=True)
-            else:
-                st.info("No results found.")
-
+    # Column 2: Word Definitions
     with col2:
-        st.subheader("📝 Word Tracer Generator")
-        
-        # Check if matches are available to pre-fill the text area
-        if st.session_state.get('search_triggered') and 'matches' in st.session_state:
-            matches_to_use = "\n".join(st.session_state['matches'])
-            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
-        else:
-            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-        
-        tracer_button = st.button(label='Generate PDF')
-            
-        if tracer_button:
-            words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
-            if words_for_tracer:
-                pdf_data = create_pdf_content(words_for_tracer)
-                if pdf_data:
-                    st.download_button(
-                        label="Download Practice Sheet as PDF",
-                        data=pdf_data,
-                        file_name="word_tracer_sheet.pdf",
-                        mime="application/pdf"
-                    )
+        st.subheader("📘 Word Definitions")
 
-    # Word Definitions section is now below
-    st.markdown("---")
-    st.subheader("📘 Word Definitions")
-
-    if st.session_state.get('search_triggered'):
-        if 'matches' in st.session_state:
-            matches = st.session_state['matches']
-            if matches:
-                data_rows = []
-                for word in matches:
-                    syns = wordnet.synsets(word)
-                    if not syns:
-                        data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
-                    else:
-                        for syn in syns:
-                            eng = syn.definition()
-                            data_rows.append({
-                                "Word": word,
-                                "Word Type": POS_MAP.get(syn.pos(), "Noun"),
-                                "English": eng,
-                                "Tamil": "-"
-                            })
-
-                df_export = pd.DataFrame(data_rows)
-
-                if st.session_state.lang_choice_main == "English Only":
-                    df_view = df_export[["Word", "Word Type", "English"]]
-                elif st.session_state.lang_choice_main == "Tamil Only":
-                    df_view = df_export[["Word", "Word Type", "Tamil"]]
+        if matches:
+            data_rows = []
+            for word in matches:
+                syns = wordnet.synsets(word)
+                if not syns:
+                    data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
                 else:
-                    df_view = df_export
+                    for syn in syns:
+                        eng = syn.definition()
+                        data_rows.append({
+                            "Word": word,
+                            "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                            "English": eng,
+                            "Tamil": "-"
+                        })
 
-                st.dataframe(df_view, height=450, use_container_width=True)
+            df_export = pd.DataFrame(data_rows)
 
-                towrite = BytesIO()
-                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
-                towrite.seek(0)
-                st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
+            if lang_choice != "English Only":
+                tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
+                df_export["Tamil"] = tamil_list
             else:
-                st.info("No results found.")
+                df_export["Tamil"] = "-"
+
+            if lang_choice == "English Only":
+                df_view = df_export[["Word", "Word Type", "English"]]
+            elif lang_choice == "Tamil Only":
+                df_view = df_export[["Word", "Word Type", "Tamil"]]
+            else:
+                df_view = df_export
+
+            st.dataframe(df_view, height=450)
+
+            towrite = BytesIO()
+            with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                df_export.to_excel(writer, index=False, sheet_name="Meanings")
+            towrite.seek(0)
+            st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
         else:
-            st.info("Please enter a suffix and click 'Search Words' to see definitions.")
-    else:
-        st.info("Please enter a suffix and click 'Search Words' to see definitions.")
+            st.info("No results found.")
+
+    st.markdown("---")
+    st.subheader("📝 Word Tracer Generator")
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    words_input = st.text_area("Enter words for practice (one per line):", height=150)
+    
+    if words_input:
+        words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
+        if words_for_tracer:
+            pdf_data = create_pdf_content(words_for_tracer)
+            st.download_button(
+                label="Download Practice Sheet as PDF",
+                data=pdf_data,
+                file_name="word_tracer_sheet.pdf",
+                mime="application/pdf"
+            )
