@@ -14,8 +14,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import red, blue, black
-from reportlab.graphics.shapes import Drawing, Line
+from reportlab.lib.colors import black
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -205,11 +206,17 @@ with st.container():
 
     with col2:
         st.subheader("📝 Word Tracer Generator")
-        with st.form("word_tracer_form"):
+        
+        # New feature: Use words from Find Words search
+        if st.session_state.get('search_triggered') and st.session_state.get('matches'):
+            matches_to_use = "\n".join(st.session_state['matches'])
+            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
+        else:
             words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-            tracer_button = st.form_submit_button(label='Generate PDF')
+        
+        tracer_button = st.button(label='Generate PDF')
             
-        if tracer_button:
+        if tracer_button and words_input:
             words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
             if words_for_tracer:
                 pdf_data = create_pdf_content(words_for_tracer)
