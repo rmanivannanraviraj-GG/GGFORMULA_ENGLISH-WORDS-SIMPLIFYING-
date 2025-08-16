@@ -178,7 +178,7 @@ def create_pdf_content(words):
         
         # Create 4 more rows with the dotted/normal style
         for _ in range(4):
-            clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            clone_row = [Paragraph(word, normal_style) for word in page_words]
             table_data.append(clone_row)
 
         table_style = [
