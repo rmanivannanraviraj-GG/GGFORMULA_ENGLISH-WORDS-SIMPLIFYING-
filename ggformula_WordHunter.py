@@ -14,9 +14,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import red, blue, black
+from reportlab.graphics.shapes import Drawing, Line
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -141,10 +140,7 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    # Register the default fonts
-    pdfmetrics.registerFont(TTFont('Helvetica-Bold', 'Helvetica-Bold.ttf'))
-    pdfmetrics.registerFont(TTFont('Courier', 'Courier.ttf'))
-    
+    # Using default fonts to avoid file not found errors
     penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
     dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
     
@@ -159,10 +155,9 @@ def create_pdf_content(words):
         if i > 0 and i % words_per_page == 0:
             story.append(PageBreak())
         
-        story.append(Paragraph(f"<b>{word}</b>", penmanship_style))
+        story.append(Paragraph(word, penmanship_style))
         story.append(Spacer(1, 0.2 * inch))
         
-        # Adding the remaining lines with the dots font
         for _ in range(5):
             story.append(Paragraph(word, dots_style))
             story.append(Spacer(1, 0.2 * inch))
