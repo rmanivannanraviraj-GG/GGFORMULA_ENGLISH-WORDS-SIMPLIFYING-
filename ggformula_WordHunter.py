@@ -7,6 +7,7 @@ from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
 import sys
+import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
@@ -16,6 +17,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.graphics.shapes import Line, Drawing
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -25,13 +27,21 @@ sys.stderr.reconfigure(encoding='utf-8')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# --- Register custom fonts ---
+# --- Register custom fonts with dynamic path ---
 try:
-    pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', 'KGPrimaryPenmanship.ttf'))
-    pdfmetrics.registerFont(TTFont('KGPrimaryDots', 'KGPrimaryDots.ttf'))
-except:
-    st.error("Font files not found. Please ensure 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' are in the same directory.")
+    # Get the directory of the current script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     
+    # Construct the full paths to the font files
+    penmanship_font_path = os.path.join(script_dir, 'KGPrimaryPenmanship.ttf')
+    dots_font_path = os.path.join(script_dir, 'KGPrimaryDots.ttf')
+    
+    pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
+    pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
+except Exception as e:
+    st.error(f"Error registering fonts: {e}")
+    st.info("Please ensure 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' are in the same directory as the app script.")
+
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
 <style>
@@ -45,24 +55,24 @@ body {
     border-radius: 12px;
     color: white;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Reduced shadow */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     margin-bottom: 20px;
 }
 .main-container {
     background-color: #f0f2f6;
-    padding: 20px; /* Adjusted padding */
+    padding: 20px;
     border-radius: 12px;
     margin-top: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Reduced shadow */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .content-box {
     background-color: #ffffff;
-    padding: 15px; /* Adjusted padding */
+    padding: 15px;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
     max-height: 450px;
     overflow-y: auto;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Reduced shadow */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .st-emotion-cache-1r65d8v {
     background: #f0f2f6;
@@ -72,7 +82,6 @@ body {
     padding-right: 1rem;
 }
 .st-emotion-cache-1f8p3j0 > div {
-    /* To ensure columns are aligned at the top */
     margin-top: 0;
 }
 .st-emotion-cache-1f8p3j0 > div > div > h3 {
@@ -124,6 +133,23 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
+# Find synonyms for a given word
+def find_synonyms(word):
+    synonyms = set()
+    for syn in wordnet.synsets(word):
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name().replace('_', ' '))
+    return list(synonyms)
+
+# Highlight suffix in word with audio icon
+def make_highlight_html(word, suf):
+    if suf and word.lower().endswith(suf.lower()):
+        p = word[:-len(suf)]
+        s = word[-len(suf):]
+        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
+    else:
+        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
+
 # Function to create the PDF content
 def create_pdf_content(words):
     buffer = BytesIO()
@@ -131,25 +157,19 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    # Custom style for the Penmanship font
     penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
-    
-    # Custom style for the Dots font
     dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
     
     story = []
     
-    # Header for the PDF
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
     for word in words:
-        # Add the first line with the Penmanship font
         story.append(Paragraph(word, penmanship_style))
         story.append(Spacer(1, 0.2 * inch))
         
-        # Add the remaining lines with the Dots font
-        for _ in range(5): # Repeat 5 times to fill the page
+        for _ in range(5):
             story.append(Paragraph(word, dots_style))
             story.append(Spacer(1, 0.2 * inch))
         
@@ -160,14 +180,11 @@ def create_pdf_content(words):
 
 
 # --- Main Streamlit App Layout ---
-# Header
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
-# Main container
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     
-    # All input controls are now at the top
     col_input1, col_input2 = st.columns(2)
     with col_input1:
         before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
@@ -178,10 +195,8 @@ with st.container():
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
     
-    # Calculate matches once
     @st.cache_data
     def get_all_words():
         words_from_wordnet = set(wordnet.all_lemma_names())
@@ -190,10 +205,8 @@ with st.container():
     all_words = get_all_words()
     matches = find_matches(all_words, suffix_input, before_letters)
     
-    # Column 1: Find Words
     with col1:
         st.subheader("🔎 Find Words")
-        # Display Total Words Found below subheader
         st.markdown(f"**Total Words Found:** {len(matches)}")
         
         if matches:
@@ -202,7 +215,6 @@ with st.container():
         else:
             st.info("No results found.")
 
-    # Column 2: Word Definitions
     with col2:
         st.subheader("📘 Word Definitions")
 
@@ -262,4 +274,3 @@ with st.container():
                 file_name="word_tracer_sheet.pdf",
                 mime="application/pdf"
             )
-
