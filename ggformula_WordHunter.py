@@ -27,28 +27,6 @@ sys.stderr.reconfigure(encoding='utf-8')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# --- Register custom fonts with dynamic path ---
-try:
-    # Use the directory of the current script to locate the fonts
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    penmanship_font_path = os.path.join(script_dir, 'KGPrimaryPenmanship.ttf')
-    dots_font_path = os.path.join(script_dir, 'KGPrimaryDots.ttf')
-    
-    # Check if files exist before trying to register
-    if os.path.exists(penmanship_font_path) and os.path.exists(dots_font_path):
-        pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
-        pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
-    else:
-        st.warning("Font files 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' not found. Using default fonts.")
-        # If fonts are not found, fallback to a simpler font
-        penmanship_font_path = 'Helvetica-Bold'
-        dots_font_path = 'Courier'
-
-except Exception as e:
-    st.error(f"எழுத்துருக்களை பதிவு செய்வதில் பிழை: {e}")
-    penmanship_font_path = 'Helvetica-Bold'
-    dots_font_path = 'Courier'
-
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
 <style>
@@ -164,13 +142,10 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    try:
-        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
-        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
-    except Exception as e:
-        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
-        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
-
+    # Using default fonts to avoid file-not-found errors
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
+    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
+    
     story = []
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
