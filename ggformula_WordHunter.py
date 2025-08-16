@@ -29,19 +29,25 @@ nltk.download('omw-1.4')
 
 # --- Register custom fonts with dynamic path ---
 try:
-    # Use the current working directory to locate the fonts
-    # This is a more robust way to handle file paths in different environments
-    script_dir = os.getcwd()
-    
-    # Construct the full paths to the font files
+    # Use the directory of the current script to locate the fonts
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     penmanship_font_path = os.path.join(script_dir, 'KGPrimaryPenmanship.ttf')
     dots_font_path = os.path.join(script_dir, 'KGPrimaryDots.ttf')
     
-    pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
-    pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
+    # Check if files exist before trying to register
+    if os.path.exists(penmanship_font_path) and os.path.exists(dots_font_path):
+        pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
+        pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
+    else:
+        st.warning("Font files 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' not found. Using default fonts.")
+        # If fonts are not found, fallback to a simpler font
+        penmanship_font_path = 'Helvetica-Bold'
+        dots_font_path = 'Courier'
+
 except Exception as e:
-    st.error(f"Error registering fonts: {e}")
-    st.info("Please ensure 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' are in the same directory as the app script.")
+    st.error(f"எழுத்துருக்களை பதிவு செய்வதில் பிழை: {e}")
+    penmanship_font_path = 'Helvetica-Bold'
+    dots_font_path = 'Courier'
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -156,14 +162,14 @@ def create_pdf_content(words):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1 * inch, rightMargin=1 * inch, topMargin=1 * inch, bottomMargin=1 * inch)
     
-    styles = getSampleStyleSheet()
+    styles = getSampleStyleStyleSheet()
     
     try:
         penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
         dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
     except Exception as e:
-        st.error(f"எழுத்துருக்களைப் பயன்படுத்த முடியவில்லை: {e}")
-        return None # Return None if fonts are not available
+        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=36, leading=40, textColor=black)
+        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=36, leading=40, textColor=black)
 
     story = []
     
@@ -192,31 +198,20 @@ with st.container():
     
     col_input1, col_input2 = st.columns(2)
     with col_input1:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
     with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"])
 
-    # Use session state to manage button clicks and trigger re-runs
-    if 'search_button_clicked' not in st.session_state:
-        st.session_state.search_button_clicked = False
-    
-    def set_search_state():
-        st.session_state.search_button_clicked = True
-        
-    def set_tracer_state():
-        st.session_state.tracer_button_clicked = True
-        
     # Layout for the main content sections
     col1, col2 = st.columns(2, gap="large")
 
     with col1:
         st.subheader("🔎 Find Words")
         with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
             search_button = st.form_submit_button(label='Search Words')
 
-        if search_button or st.session_state.search_button_clicked:
-            st.session_state.search_button_clicked = True
+        if search_button:
             all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
             matches = find_matches(all_words, suffix_input, before_letters)
             
@@ -227,11 +222,11 @@ with st.container():
                 st.dataframe(matches_df, height=450, use_container_width=True)
             else:
                 st.info("No results found.")
-
+    
     with col2:
         st.subheader("📝 Word Tracer Generator")
         with st.form("word_tracer_form"):
-            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
+            words_input = st.text_area("Enter words for practice (one per line):", height=150)
             tracer_button = st.form_submit_button(label='Generate PDF')
             
         if tracer_button:
@@ -250,9 +245,9 @@ with st.container():
     st.markdown("---")
     st.subheader("📘 Word Definitions")
 
-    if st.session_state.search_button_clicked:
+    if st.session_state.get('search_button_clicked'):
         all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-        matches = find_matches(all_words, st.session_state.suffix_input_form, st.session_state.before_letters_main)
+        matches = find_matches(all_words, st.session_state.find_words_form_suffix_input, before_letters)
         
         if matches:
             data_rows = []
@@ -272,15 +267,15 @@ with st.container():
 
             df_export = pd.DataFrame(data_rows)
 
-            if st.session_state.lang_choice_main != "English Only":
+            if lang_choice != "English Only":
                 tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
                 df_export["Tamil"] = tamil_list
             else:
                 df_export["Tamil"] = "-"
 
-            if st.session_state.lang_choice_main == "English Only":
+            if lang_choice == "English Only":
                 df_view = df_export[["Word", "Word Type", "English"]]
-            elif st.session_state.lang_choice_main == "Tamil Only":
+            elif lang_choice == "Tamil Only":
                 df_view = df_export[["Word", "Word Type", "Tamil"]]
             else:
                 df_view = df_export
