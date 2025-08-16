@@ -286,6 +286,8 @@ with st.container():
                 if st.session_state.lang_choice_main == "English Only":
                     df_view = df_export[["Word", "Word Type", "English"]]
                 elif st.session_state.lang_choice_main == "Tamil Only":
+                    tamil_list = translate_list_parallel(df_export["English"].tolist(), max_workers=10)
+                    df_export["Tamil"] = tamil_list
                     df_view = df_export[["Word", "Word Type", "Tamil"]]
                 else:
                     df_view = df_export
