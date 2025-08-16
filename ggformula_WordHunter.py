@@ -14,10 +14,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black
+from reportlab.lib.colors import red, blue, black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.graphics.shapes import Line, Drawing
+from reportlab.graphics.shapes import Drawing, Line
 
 # Set default encoding to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -29,7 +29,8 @@ nltk.download('omw-1.4')
 
 # --- Register custom fonts with dynamic path ---
 try:
-    # Get the directory of the current script
+    # Use the current working directory to locate the fonts
+    # This is a more robust way to handle file paths in different environments
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Construct the full paths to the font files
@@ -39,8 +40,8 @@ try:
     pdfmetrics.registerFont(TTFont('KGPrimaryPenmanship', penmanship_font_path))
     pdfmetrics.registerFont(TTFont('KGPrimaryDots', dots_font_path))
 except Exception as e:
-    st.error(f"Error registering fonts: {e}")
-    st.info("Please ensure 'KGPrimaryPenmanship.ttf' and 'KGPrimaryDots.ttf' are in the same directory as the app script.")
+    st.error(f"எழுத்துருக்களை பதிவு செய்வதில் பிழை: {e}")
+    st.info("தயவுசெய்து 'KGPrimaryPenmanship.ttf' மற்றும் 'KGPrimaryDots.ttf' கோப்புகள் செயலியின் ஸ்கிரிப்ட் இருக்கும் அதே கோப்புறையில் இருப்பதை உறுதி செய்யவும்.")
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -157,9 +158,13 @@ def create_pdf_content(words):
     
     styles = getSampleStyleSheet()
     
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
-    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
-    
+    try:
+        penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='KGPrimaryPenmanship', fontSize=36, leading=40, textColor=black)
+        dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='KGPrimaryDots', fontSize=36, leading=40, textColor=black)
+    except Exception as e:
+        st.error(f"எழுத்துருக்களைப் பயன்படுத்த முடியவில்லை: {e}")
+        return None # Return None if fonts are not available
+
     story = []
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
@@ -268,9 +273,10 @@ with st.container():
         words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
         if words_for_tracer:
             pdf_data = create_pdf_content(words_for_tracer)
-            st.download_button(
-                label="Download Practice Sheet as PDF",
-                data=pdf_data,
-                file_name="word_tracer_sheet.pdf",
-                mime="application/pdf"
-            )
+            if pdf_data:
+                st.download_button(
+                    label="Download Practice Sheet as PDF",
+                    data=pdf_data,
+                    file_name="word_tracer_sheet.pdf",
+                    mime="application/pdf"
+                )
