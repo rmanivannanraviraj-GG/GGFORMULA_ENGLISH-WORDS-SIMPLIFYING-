@@ -144,8 +144,12 @@ def create_pdf_content(words):
     
     # Using default fonts to avoid file not found errors
     penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
-    dots_style = ParagraphStyle('Dots', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=black)
     
+    # We will create a style for the dotted words, but ReportLab doesn't support
+    # opacity directly on text, so we'll use a different font or color.
+    # For this example, we'll use a slightly different style to represent 'opacity'.
+    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Helvetica', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+
     story = []
     
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
@@ -153,24 +157,28 @@ def create_pdf_content(words):
     
     words_per_page = 5
     
-    for i, word in enumerate(words):
-        if i > 0 and i % words_per_page == 0:
+    for i in range(0, len(words), words_per_page):
+        if i > 0:
             story.append(PageBreak())
         
-        # Creating a 5x5 grid-like structure
-        table_data = []
-        # Bold word row
-        table_data.append([Paragraph(f"<b>{word}</b>", penmanship_style) for _ in range(5)])
+        page_words = words[i:i + words_per_page]
         
-        # Clone word rows
+        table_data = []
+        
+        # Create a single row for the bold words
+        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in page_words]
+        table_data.append(bold_row)
+        
+        # Create 4 more rows with the dotted/normal style
         for _ in range(4):
-            table_data.append([Paragraph(word, dots_style) for _ in range(5)])
-            
+            clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            table_data.append(clone_row)
+
         table_style = [
             ('INNERGRID', (0,0), (-1,-1), 0.25, black),
             ('BOX', (0,0), (-1,-1), 0.25, black),
         ]
-        
+
         story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
         story.append(Spacer(1, 0.5 * inch))
 
@@ -270,7 +278,7 @@ with st.container():
 
                 if st.session_state.lang_choice_main == "English Only":
                     df_view = df_export[["Word", "Word Type", "English"]]
-                elif st.session_state.lang_choice_main == "Tamil Only":
+                elif st.session_choice_main == "Tamil Only":
                     df_view = df_export[["Word", "Word Type", "Tamil"]]
                 else:
                     df_view = df_export
