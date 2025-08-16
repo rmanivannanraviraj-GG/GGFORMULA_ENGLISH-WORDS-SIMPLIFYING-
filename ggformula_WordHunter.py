@@ -284,4 +284,4 @@ with st.container():
     else:
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
-    st.markdown("</div>", unsafe_allow_html=Tr
+    st.markdown("</div>", unsafe_allow_html=True)
