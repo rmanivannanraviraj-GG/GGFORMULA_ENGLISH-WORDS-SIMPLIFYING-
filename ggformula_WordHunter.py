@@ -154,10 +154,7 @@ def create_pdf_content(words):
     
     story = []
     
-    # Add header text
-    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
-    story.append(Spacer(1, 0.5 * inch))
-    
+    # Add Name and Date placeholder
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
     story.append(Spacer(1, 0.5 * inch))
     
