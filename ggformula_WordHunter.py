@@ -160,26 +160,34 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
+    words_per_page = 5
     
-    for word in words:
-        table_data = []
+    for i in range(0, len(words), words_per_page):
+        if i > 0:
+            story.append(PageBreak())
         
-        # Create a single row for the bold words
-        bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for _ in range(5)]
-        table_data.append(bold_row)
+        page_words = words[i:i + words_per_page]
         
-        # Create 4 more rows with the dotted/normal style
-        for _ in range(4):
-            clone_row = [Paragraph(word, dotted_style) for _ in range(5)]
-            table_data.append(clone_row)
+        # Create a table for each word
+        for word in page_words:
+            table_data = []
+            
+            # Create a single row for the bold word
+            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for _ in range(1)] # Only one bold word per line
+            table_data.append(bold_row)
+            
+            # Create 5 rows with the dotted words
+            for _ in range(5):
+                clone_row = [Paragraph(word, dotted_style) for _ in range(1)] # One dotted word per line
+                table_data.append(clone_row)
 
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-        ]
+            table_style = [
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+            ]
 
-        story.append(Table(table_data, colWidths=[1.5*inch]*5, style=table_style))
-        story.append(Spacer(1, 0.5 * inch))
+            story.append(Table(table_data, colWidths=[6.5*inch], style=table_style)) # Adjust colWidth to fit the page
+            story.append(Spacer(1, 0.5 * inch))
         
     # Footer
     story.append(Spacer(1, 0.5 * inch))
