@@ -5,4 +5,5 @@ deep-translator
 xlsxwriter
 requests
 reportlab
+PyDictionary
 
