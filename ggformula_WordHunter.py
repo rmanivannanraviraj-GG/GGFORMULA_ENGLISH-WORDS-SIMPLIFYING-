@@ -11,12 +11,76 @@ import sys
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import cm
+from reportlab.lib import colors
+
+def create_practice_pdf(words, filename="practice_final.pdf"):
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=A4,
+        rightMargin=50, leftMargin=50,
+        topMargin=50, bottomMargin=50
+    )
+    story = []
+
+    # Main word style (Black Bold)
+    model_style = ParagraphStyle(
+        'ModelWord',
+        fontName="Helvetica-Bold",
+        fontSize=32,
+        alignment=TA_CENTER,
+        leading=40,
+        textColor=colors.black
+    )
+
+    # Clone/tracing word style (Dark Grey, same font)
+    trace_style = ParagraphStyle(
+        'TraceWord',
+        fontName="Helvetica-Bold",
+        fontSize=32,
+        alignment=TA_CENTER,
+        leading=40,
+        textColor=colors.darkgrey
+    )
+
+    # Page height divided into 3 sections
+    usable_height = A4[1] - 100
+    section_height = usable_height / 3
+
+    for idx, word in enumerate(words):
+        # Section spacing (top, middle, bottom)
+        if idx % 3 == 0:
+            story.append(Spacer(1, 0.5 * cm))  # top
+        else:
+            story.append(Spacer(1, section_height - (6 * 40)))  # middle/bottom adjust
+
+        # Main word (Black Bold)
+        story.append(Paragraph(word, model_style))
+        story.append(Spacer(1, 0.4 * cm))
+
+        # Clone words (Dark Grey × 5 rows)
+        for _ in range(5):
+            story.append(Paragraph(word, trace_style))
+            story.append(Spacer(1, 0.3 * cm))
+
+        # After every 3 words → new page
+        if (idx + 1) % 3 == 0 and (idx + 1) < len(words):
+            story.append(PageBreak())
+
+    doc.build(story)
+    print(f"✅ PDF saved: {filename}")
+
+
+# Example usage
+if __name__ == "__main__":
+    words = ["Apple", "Ball", "Cat", "Dog", "Egg", "Fish", "Goat"]
+    create_practice_pdf(words)
+
 
 # -------------------------------------------------------------------
 # Streamlit Page Config (must be at the very top)
@@ -299,6 +363,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
