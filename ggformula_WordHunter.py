@@ -1,5 +1,6 @@
 import streamlit as st
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Flowable
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
@@ -18,15 +19,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 
-# -------------------------------------------------------------------
-import sys
-
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-except AttributeError:
-    # Older Python versions don't have reconfigure
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# ------------------------------------------------------------------
 
 # Streamlit Page Config
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
@@ -151,91 +144,109 @@ class UnderlinedWord(Flowable):
         self.canv.setDash(3, 2)  # dashed pattern
         self.canv.line(0, -2, self.width, -2)
 
-# ---------- PDF Generator ----------
-# ---------- PDF Generator (Final Integrated) ----------
-def create_pdf_content(words):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=40, leftMargin=40,
-        topMargin=40, bottomMargin=40
+# ✅ PDF generation function
+def create_practice_pdf(words, filename="english_practice_sheet.pdf"):
+    c = canvas.Canvas(filename, pagesize=A4)
+    width, height = A4
+
+    # Margins
+    left_margin = 50
+    right_margin = 50
+    top_margin = 50
+    bottom_margin = 50
+
+    # Column settings
+    column_gap = 40
+    column_width = (width - left_margin - right_margin - column_gap) / 2
+
+    # Font settings
+    main_font = "Helvetica-Bold"
+    main_size = 28
+    trace_size = 28
+
+    # Vertical spacing
+    line_height = 40
+    clone_gap = 10
+    block_height = main_size + (trace_size + clone_gap) * 5 + 60  # One word block height
+
+    # Start position
+    x_positions = [left_margin, left_margin + column_width + column_gap]
+    y_position = height - top_margin
+
+    word_index = 0
+    for word in words:
+        col = word_index % 2
+        if col == 0 and word_index > 0:
+            # Left column already used, reduce Y
+            y_position -= block_height
+
+        if y_position < bottom_margin + block_height:
+            c.showPage()
+            y_position = height - top_margin
+
+        x = x_positions[col]
+
+        # Draw main word (Black Bold)
+        c.setFont(main_font, main_size)
+        c.setFillColor(colors.black)
+        c.drawCentredString(x + column_width / 2, y_position, word)
+
+        # Draw clone words (Light Grey Bold with underline/dash lines)
+        c.setFont(main_font, trace_size)
+        c.setFillColor(colors.lightgrey)
+
+        y_clone = y_position - line_height
+        for _ in range(5):
+            c.drawCentredString(x + column_width / 2, y_clone, word)
+
+            # Draw dashed underline
+            word_width = c.stringWidth(word, main_font, trace_size)
+            underline_y = y_clone - 5
+            c.setDash(3, 3)
+            c.line(
+                x + (column_width - word_width) / 2,
+                underline_y,
+                x + (column_width + word_width) / 2,
+                underline_y,
+            )
+            c.setDash()  # reset dash
+
+            y_clone -= (trace_size + clone_gap)
+
+        word_index += 1
+
+    c.save()
+    return filename
+
+
+# ✅ Streamlit UI
+def main():
+    st.title("✏️ English Word Tracing Practice Sheet Generator")
+
+    st.write("Enter the English words you want to generate for practice:")
+
+    user_input = st.text_area(
+        "Words (comma separated)", "Apple, Ball, Cat, Dog, Egg, Fish, Goat, Hat, Ink, Jug"
     )
-    story = []
+    words = [w.strip() for w in user_input.split(",") if w.strip()]
 
-    # Styles
-    model_style = ParagraphStyle(
-        'ModelWord',
-        fontName="Helvetica-Bold",
-        fontSize=28,
-        alignment=TA_CENTER,
-        leading=34,
-        textColor=colors.black
-    )
-    trace_style = ParagraphStyle(
-        'TraceWord',
-        fontName="Helvetica-Bold",   # same bold font (no size diff)
-        fontSize=28,
-        alignment=TA_CENTER,
-        leading=34,
-        textColor=colors.lightgrey
-    )
+    if st.button("Generate PDF"):
+        output_file = "english_practice_sheet.pdf"
+        create_practice_pdf(words, output_file)
 
-    # Split words into chunks of 6 (per page)
-    for page_start in range(0, len(words), 6):
-        chunk = words[page_start:page_start+6]
-        left_col = chunk[:3]
-        right_col = chunk[3:6]
+        with open(output_file, "rb") as f:
+            st.download_button(
+                label="📥 Download Practice Sheet PDF",
+                data=f,
+                file_name=output_file,
+                mime="application/pdf",
+            )
 
-        while len(left_col) < 3:
-            left_col.append("")
-        while len(right_col) < 3:
-            right_col.append("")
+        st.success("✅ PDF generated successfully!")
 
-        table_data = []
-        for left_word, right_word in zip(left_col, right_col):
-            left_block, right_block = [], []
 
-            if left_word:
-                left_block.append(Paragraph(left_word, model_style))
-                left_block.append(Spacer(1, 6))
-                for _ in range(5):
-                    trace_para = Paragraph(f"<u>{left_word}</u>", trace_style)
-                    left_block.append(trace_para)
-                    left_block.append(Spacer(1, 4))
-            else:
-                left_block.append(Spacer(1, 200))
-
-            if right_word:
-                right_block.append(Paragraph(right_word, model_style))
-                right_block.append(Spacer(1, 6))
-                for _ in range(5):
-                    trace_para = Paragraph(f"<u>{right_word}</u>", trace_style)
-                    right_block.append(trace_para)
-                    right_block.append(Spacer(1, 4))
-            else:
-                right_block.append(Spacer(1, 200))
-
-            table_data.append([left_block, right_block])
-
-        table = Table(
-            table_data,
-            colWidths=[(A4[0]-100)/2]*2,
-            hAlign="CENTER"
-        )
-        table.setStyle(TableStyle([
-            ("VALIGN", (0,0), (-1,-1), "TOP"),
-            ("BOX", (0,0), (-1,-1), 0.5, colors.white),
-        ]))
-        story.append(table)
-
-        if page_start + 6 < len(words):
-            story.append(PageBreak())
-
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
-
+if __name__ == "__main__":
+    main()
 # -------------------------------------------------------------------
 # --- Main Streamlit App Layout ---
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
@@ -348,6 +359,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
