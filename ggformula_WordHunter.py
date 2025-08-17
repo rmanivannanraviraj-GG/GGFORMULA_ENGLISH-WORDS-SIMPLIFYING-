@@ -25,8 +25,8 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 
 # System Encoding
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
+#sys.stdout.reconfigure(encoding='utf-8')
+#sys.stderr.reconfigure(encoding='utf-8')
 
 # Download WordNet data (only once)
 nltk.download('wordnet')
@@ -359,6 +359,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
