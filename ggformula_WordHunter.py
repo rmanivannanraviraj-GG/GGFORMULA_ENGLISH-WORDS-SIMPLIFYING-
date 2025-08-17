@@ -1,32 +1,28 @@
 import streamlit as st
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Flowable
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.units import cm
-from reportlab.lib import colors
+import pandas as pd
 from io import BytesIO
+from pathlib import Path
+from deep_translator import GoogleTranslator
+from nltk.corpus import wordnet
+import nltk
+from concurrent.futures import ThreadPoolExecutor
+import sys
+import os
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.units import cm
-from reportlab.lib import colors
+from reportlab.lib.colors import black, darkgrey
 
-# ------------------------------------------------------------------
-
-# Streamlit Page Config
-st.set_page_config(page_title="Word Suffix Finder", layout="wide")
-
-# System Encoding
-#sys.stdout.reconfigure(encoding='utf-8')
-#sys.stderr.reconfigure(encoding='utf-8')
+# Set default encoding to UTF-8
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 # Download WordNet data (only once)
 nltk.download('wordnet')
@@ -359,6 +355,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
