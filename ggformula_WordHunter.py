@@ -9,7 +9,9 @@ import requests
 import streamlit as st
 import pandas as pd
 import nltk
-import pydictionary as pdict
+from PyDictionary import PyDictionary
+dictionary = PyDictionary()
+
 from googletrans import Translator
 from nltk.corpus import wordnet
 
@@ -187,4 +189,5 @@ with st.container():
         st.table(df2)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
