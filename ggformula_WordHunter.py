@@ -143,9 +143,11 @@ class UnderlinedWord(Flowable):
         self.canv.line(0, -2, self.width, -2)
 
 # ---------- PDF Generator ----------
-def create_practice_pdf(words, filename="english_practice_sheet.pdf"):
+# ---------- PDF Generator (Final Integrated) ----------
+def create_pdf_content(words):
+    buffer = BytesIO()
     doc = SimpleDocTemplate(
-        filename,
+        buffer,
         pagesize=A4,
         rightMargin=40, leftMargin=40,
         topMargin=40, bottomMargin=40
@@ -161,36 +163,30 @@ def create_practice_pdf(words, filename="english_practice_sheet.pdf"):
         leading=34,
         textColor=colors.black
     )
-
     trace_style = ParagraphStyle(
         'TraceWord',
-        fontName="Helvetica-Bold",   # same bold font (size matches)
+        fontName="Helvetica-Bold",   # same bold font (no size diff)
         fontSize=28,
         alignment=TA_CENTER,
         leading=34,
         textColor=colors.lightgrey
     )
 
-    # Split words into chunks of 6 (for each page)
+    # Split words into chunks of 6 (per page)
     for page_start in range(0, len(words), 6):
         chunk = words[page_start:page_start+6]
-
-        # Arrange into 2 columns (left=3 words, right=3 words)
         left_col = chunk[:3]
         right_col = chunk[3:6]
 
-        # Normalize column lengths
         while len(left_col) < 3:
             left_col.append("")
         while len(right_col) < 3:
             right_col.append("")
 
-        # Build table data row by row
         table_data = []
         for left_word, right_word in zip(left_col, right_col):
             left_block, right_block = [], []
 
-            # Left word block
             if left_word:
                 left_block.append(Paragraph(left_word, model_style))
                 left_block.append(Spacer(1, 6))
@@ -201,7 +197,6 @@ def create_practice_pdf(words, filename="english_practice_sheet.pdf"):
             else:
                 left_block.append(Spacer(1, 200))
 
-            # Right word block
             if right_word:
                 right_block.append(Paragraph(right_word, model_style))
                 right_block.append(Spacer(1, 6))
@@ -212,54 +207,25 @@ def create_practice_pdf(words, filename="english_practice_sheet.pdf"):
             else:
                 right_block.append(Spacer(1, 200))
 
-            # Add row to table
             table_data.append([left_block, right_block])
 
-        # Create 2-column table
         table = Table(
             table_data,
-            colWidths=[(A4[0]-100)/2]*2,  # equal column widths
+            colWidths=[(A4[0]-100)/2]*2,
             hAlign="CENTER"
         )
-
         table.setStyle(TableStyle([
             ("VALIGN", (0,0), (-1,-1), "TOP"),
-            ("BOX", (0,0), (-1,-1), 0.5, colors.white),  # invisible
+            ("BOX", (0,0), (-1,-1), 0.5, colors.white),
         ]))
-
         story.append(table)
 
-        # Page break
         if page_start + 6 < len(words):
             story.append(PageBreak())
 
     doc.build(story)
-    return filename
-
-
-# Example usage
-words = [
-    "Apple", "Ball", "Cat",
-    "Dog", "Egg", "Fish",
-    "Goat", "Hat", "Ice",
-    "Jug", "Kite", "Lion"
-]
-create_practice_pdf(words)
-
-# ---------- Streamlit App ----------
-st.title("✏️ English Tracing Practice Sheet Generator")
-
-words_input = st.text_area("Enter words (comma separated):", "Apple, Ball, Cat, Dog, Egg, Fish, Goat")
-words_for_tracer = [w.strip() for w in words_input.split(",") if w.strip()]
-
-if st.button("Generate PDF"):
-    pdf_buffer = create_pdf_content(words_for_tracer)
-    st.download_button(
-        "📥 Download Practice Sheet",
-        data=pdf_buffer,
-        file_name="tracing_practice_sheet.pdf",
-        mime="application/pdf"
-    )
+    buffer.seek(0)
+    return buffer
 
 # -------------------------------------------------------------------
 # --- Main Streamlit App Layout ---
@@ -373,5 +339,6 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
