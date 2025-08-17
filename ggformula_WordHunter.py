@@ -7,6 +7,25 @@ from pathlib import Path
 
 import streamlit as st
 import pandas as pd
+import requests
+
+def get_dictapi_meaning(word: str):
+    try:
+        url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+        r = requests.get(url, timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            defs = []
+            for meaning in data[0]["meanings"]:
+                part = meaning["partOfSpeech"]
+                for d in meaning["definitions"]:
+                    defs.append((part, d["definition"]))
+            return defs[:3]  # cap to 3
+    except Exception:
+        return []
+    return []
+
+
 
 # NLTK / WordNet
 import nltk
@@ -332,3 +351,4 @@ if go_defs:
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption("© Brain-Child — Tracing Generator + Dictionary Explorer • 6 words/page ‘golden middle’ layout")
+
