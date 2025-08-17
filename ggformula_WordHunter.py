@@ -15,78 +15,15 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 
-def create_practice_pdf(words, filename="practice_final.pdf"):
-    doc = SimpleDocTemplate(
-        filename,
-        pagesize=A4,
-        rightMargin=50, leftMargin=50,
-        topMargin=50, bottomMargin=50
-    )
-    story = []
-
-    # Main word style (Black Bold)
-    model_style = ParagraphStyle(
-        'ModelWord',
-        fontName="Helvetica-Bold",
-        fontSize=32,
-        alignment=TA_CENTER,
-        leading=40,
-        textColor=colors.black
-    )
-
-    # Clone/tracing word style (Dark Grey, same font)
-    trace_style = ParagraphStyle(
-        'TraceWord',
-        fontName="Helvetica-Bold",
-        fontSize=32,
-        alignment=TA_CENTER,
-        leading=40,
-        textColor=colors.darkgrey
-    )
-
-    # Page height divided into 3 sections
-    usable_height = A4[1] - 100
-    section_height = usable_height / 3
-
-    for idx, word in enumerate(words):
-        # Section spacing (top, middle, bottom)
-        if idx % 3 == 0:
-            story.append(Spacer(1, 0.5 * cm))  # top
-        else:
-            story.append(Spacer(1, section_height - (6 * 40)))  # middle/bottom adjust
-
-        # Main word (Black Bold)
-        story.append(Paragraph(word, model_style))
-        story.append(Spacer(1, 0.4 * cm))
-
-        # Clone words (Dark Grey × 5 rows)
-        for _ in range(5):
-            story.append(Paragraph(word, trace_style))
-            story.append(Spacer(1, 0.3 * cm))
-
-        # After every 3 words → new page
-        if (idx + 1) % 3 == 0 and (idx + 1) < len(words):
-            story.append(PageBreak())
-
-    doc.build(story)
-    print(f"✅ PDF saved: {filename}")
-
-
-# Example usage
-if __name__ == "__main__":
-    words = ["Apple", "Ball", "Cat", "Dog", "Egg", "Fish", "Goat"]
-    create_practice_pdf(words)
-
-
 # -------------------------------------------------------------------
-# Streamlit Page Config (must be at the very top)
+# Streamlit Page Config
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 
-# -------------------------------------------------------------------
 # System Encoding
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
@@ -95,7 +32,7 @@ sys.stderr.reconfigure(encoding='utf-8')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-# PDF Unicode font registration (for Tamil)
+# PDF Unicode font registration (for Tamil if needed)
 pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
 
 # Cache directory
@@ -187,17 +124,18 @@ if os.path.exists("KGPrimaryDots.ttf"):  # keep the TTF file in same folder
     pdfmetrics.registerFont(TTFont('Dotted', "KGPrimaryDots.ttf"))
     practice_font = "Dotted"
 
-
-def create_practice_pdf(words, filename="practice_final.pdf"):
+# -------------------------------------------------------------------
+# PDF Generator (BytesIO version for Streamlit)
+def create_pdf_content(words):
+    buffer = BytesIO()
     doc = SimpleDocTemplate(
-        filename,
+        buffer,
         pagesize=A4,
         rightMargin=50, leftMargin=50,
         topMargin=50, bottomMargin=50
     )
     story = []
 
-    # Styles
     model_style = ParagraphStyle(
         'ModelWord',
         fontName=practice_font,
@@ -206,7 +144,6 @@ def create_practice_pdf(words, filename="practice_final.pdf"):
         leading=40,
         textColor=colors.black
     )
-
     trace_style = ParagraphStyle(
         'TraceWord',
         fontName=practice_font,
@@ -216,40 +153,28 @@ def create_practice_pdf(words, filename="practice_final.pdf"):
         textColor=colors.darkgrey
     )
 
-    # Page height divided into 3 sections
     usable_height = A4[1] - 100
     section_height = usable_height / 3
 
     for idx, word in enumerate(words):
-        # Section spacing (top, middle, bottom)
         if idx % 3 == 0:
-            story.append(Spacer(1, 0.5 * cm))  # top section margin
+            story.append(Spacer(1, 0.5 * cm))
         else:
-            story.append(Spacer(1, section_height - (6 * 40)))  # adjust for middle/bottom
+            story.append(Spacer(1, section_height - (6 * 40)))
 
-        # Main model word
         story.append(Paragraph(word, model_style))
         story.append(Spacer(1, 0.4 * cm))
 
-        # Clone words (5 rows)
         for _ in range(5):
             story.append(Paragraph(word, trace_style))
             story.append(Spacer(1, 0.3 * cm))
 
-        # After every 3 words → new page
         if (idx + 1) % 3 == 0 and (idx + 1) < len(words):
             story.append(PageBreak())
 
     doc.build(story)
-    print(f"✅ PDF saved: {filename}")
-
-
-# Example usage
-if __name__ == "__main__":
-    # நீங்கள் விரும்பும் வார்த்தைகளை இங்கே கொடுக்கவும்
-    words = ["Apple", "Ball", "Cat", "Dog", "Egg", "Fish", "Goat", "Hat", "Ice"]
-    create_practice_pdf(words)
-
+    buffer.seek(0)
+    return buffer
 
 # -------------------------------------------------------------------
 # --- Main Streamlit App Layout ---
@@ -363,7 +288,3 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
-
-
-
-
