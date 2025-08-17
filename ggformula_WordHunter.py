@@ -117,82 +117,74 @@ def find_synonyms(word):
             synonyms.add(lemma.name().replace('_', ' '))
     return list(synonyms)
 
-# -------------------------------------------------------------------
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.enums import TA_CENTER
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.units import cm
-
-# 🔹 1. உங்கள் dotted font file register பண்ணுங்க
-try:
-    pdfmetrics.registerFont(TTFont('Dotted', 'KGPrimaryDots.ttf'))  # உங்கள் folder-ல் இருக்கணும்
-    dotted_font = 'Dotted'
-except:
-    dotted_font = 'Courier'  # fallback if font not found
+# Try to use dotted handwriting font if available
+practice_font = "Helvetica-Bold"
+if os.path.exists("KGPrimaryDots.ttf"):  # keep the TTF file in same folder
+    pdfmetrics.registerFont(TTFont('Dotted', "KGPrimaryDots.ttf"))
+    practice_font = "Dotted"
 
 
-# 🔹 2. Practice sheet உருவாக்கும் function
-def create_practice_pdf(words, filename="handwriting_practice.pdf"):
-    doc = SimpleDocTemplate(filename, pagesize=A4,
-                            rightMargin=50, leftMargin=50,
-                            topMargin=50, bottomMargin=50)
+def create_practice_pdf(words, filename="practice_final.pdf"):
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=A4,
+        rightMargin=50, leftMargin=50,
+        topMargin=50, bottomMargin=50
+    )
     story = []
 
-    # Model word style (Bold)
+    # Styles
     model_style = ParagraphStyle(
         'ModelWord',
-        fontName="Helvetica-Bold",
-        fontSize=28,
+        fontName=practice_font,
+        fontSize=32,
         alignment=TA_CENTER,
-        leading=34
+        leading=40,
+        textColor=colors.black
     )
 
-    # Dotted trace word style
     trace_style = ParagraphStyle(
         'TraceWord',
-        fontName=dotted_font,
-        fontSize=28,
+        fontName=practice_font,
+        fontSize=32,
         alignment=TA_CENTER,
-        leading=34
+        leading=40,
+        textColor=colors.darkgrey
     )
 
-    # Empty line style (for writing practice)
-    line_style = ParagraphStyle(
-        'LineWord',
-        fontName="Helvetica",
-        fontSize=28,
-        alignment=TA_CENTER,
-        leading=34
-    )
+    # Page height divided into 3 sections
+    usable_height = A4[1] - 100
+    section_height = usable_height / 3
 
-    # 🔹 3. ஒவ்வொரு வார்த்தைக்கும் பின்வரும் அமைப்பு வரும்
-    for word in words:
-        # Model word (Bold)
+    for idx, word in enumerate(words):
+        # Section spacing (top, middle, bottom)
+        if idx % 3 == 0:
+            story.append(Spacer(1, 0.5 * cm))  # top section margin
+        else:
+            story.append(Spacer(1, section_height - (6 * 40)))  # adjust for middle/bottom
+
+        # Main model word
         story.append(Paragraph(word, model_style))
-        story.append(Spacer(1, 0.5 * cm))
+        story.append(Spacer(1, 0.4 * cm))
 
-        # Trace word (Dotted Font)
-        story.append(Paragraph(word, trace_style))
-        story.append(Spacer(1, 0.5 * cm))
+        # Clone words (5 rows)
+        for _ in range(5):
+            story.append(Paragraph(word, trace_style))
+            story.append(Spacer(1, 0.3 * cm))
 
-        # 2 Empty Lines for practice
-        story.append(Paragraph("____________________", line_style))
-        story.append(Spacer(1, 0.5 * cm))
-        story.append(Paragraph("____________________", line_style))
-        story.append(Spacer(1, 1.2 * cm))  # space before next word
+        # After every 3 words → new page
+        if (idx + 1) % 3 == 0 and (idx + 1) < len(words):
+            story.append(PageBreak())
 
-    # PDF Build
     doc.build(story)
-    print(f"✅ Handwriting practice PDF saved as {filename}")
+    print(f"✅ PDF saved: {filename}")
 
 
-# 🔹 4. Example usage
+# Example usage
 if __name__ == "__main__":
-    word_list = ["Apple", "Ball", "Cat", "Dog", "Elephant"]
-    create_practice_pdf(word_list, "kids_handwriting_practice.pdf")
+    # நீங்கள் விரும்பும் வார்த்தைகளை இங்கே கொடுக்கவும்
+    words = ["Apple", "Ball", "Cat", "Dog", "Egg", "Fish", "Goat", "Hat", "Ice"]
+    create_practice_pdf(words)
 
 
 # -------------------------------------------------------------------
@@ -307,5 +299,6 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
