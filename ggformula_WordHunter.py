@@ -80,7 +80,7 @@ body {
 """, unsafe_allow_html=True)
 
 # Streamlit page config
-st.set_page_config(page_title="Word Suffix Finder", layout="wide")
+st.set_page_config(page_title="BRAIB-CHILD DICITIONARY", layout="wide")
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
 
@@ -308,6 +308,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
