@@ -141,6 +141,43 @@ for fname in FONTS.values():
         pdfmetrics.registerFont(TTFont(fname.replace(".ttf",""), fname))
 
 # ------------------------
+# Register extra fonts (optional for kids handwriting)
+# ------------------------
+FONTS = {
+    "Helvetica": "Helvetica",
+    "Comic Sans": "ComicSansMS.ttf",   # you need to keep this .ttf file in project folder
+    "Arial": "Arial.ttf"
+}
+
+for fname in FONTS.values():
+    if fname.endswith(".ttf") and os.path.exists(fname):
+        pdfmetrics.registerFont(TTFont(fname.replace(".ttf",""), fname))
+
+# ------------------------
+import streamlit as st
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import os
+
+# ------------------------
+# Register extra fonts (optional for kids handwriting)
+# ------------------------
+FONTS = {
+    "Helvetica": "Helvetica",
+    "Comic Sans": "ComicSansMS.ttf",   # you need to keep this .ttf file in project folder
+    "Arial": "Arial.ttf"
+}
+
+for fname in FONTS.values():
+    if fname.endswith(".ttf") and os.path.exists(fname):
+        pdfmetrics.registerFont(TTFont(fname.replace(".ttf",""), fname))
+
+# ------------------------
 # PDF Generator Function
 # ------------------------
 def create_practice_pdf(words, filename, clone_count=5, font_choice="Helvetica", margins=(50,50,50,50)):
@@ -195,6 +232,63 @@ def create_practice_pdf(words, filename, clone_count=5, font_choice="Helvetica",
 
     doc.build(story)
     return filename
+
+# ------------------------
+# Streamlit UI
+# ------------------------
+st.title("✏️ Kids English Word Tracer Generator")
+
+# Sidebar Controls
+st.sidebar.header("⚙️ Settings")
+clone_count = st.sidebar.slider("Number of trace clones per word", 3, 10, 5)
+font_choice = st.sidebar.selectbox("Font Style", list(FONTS.keys()))
+margin_left = st.sidebar.slider("Left Margin", 20, 80, 50)
+margin_right = st.sidebar.slider("Right Margin", 20, 80, 50)
+margin_top = st.sidebar.slider("Top Margin", 20, 100, 50)
+margin_bottom = st.sidebar.slider("Bottom Margin", 20, 100, 50)
+
+# Input words
+words_input = st.text_area("Enter words (comma separated)", "Apple, Ball, Cat, Dog, Egg, Fish")
+
+words = [w.strip() for w in words_input.split(",") if w.strip()]
+
+if st.button("Generate Practice PDF"):
+    output_file = "practice_sheet.pdf"
+    create_practice_pdf(words, output_file,
+                        clone_count=clone_count,
+                        font_choice=font_choice if font_choice=="Helvetica" else font_choice.replace(".ttf",""),
+                        margins=(margin_left, margin_right, margin_top, margin_bottom))
+    with open(output_file, "rb") as f:
+        st.download_button("📥 Download PDF", f, file_name=output_file)
+
+
+# ------------------------
+# Streamlit UI
+# ------------------------
+st.title("✏️ Kids English Word Tracer Generator")
+
+# Sidebar Controls
+st.sidebar.header("⚙️ Settings")
+clone_count = st.sidebar.slider("Number of trace clones per word", 3, 10, 5)
+font_choice = st.sidebar.selectbox("Font Style", list(FONTS.keys()))
+margin_left = st.sidebar.slider("Left Margin", 20, 80, 50)
+margin_right = st.sidebar.slider("Right Margin", 20, 80, 50)
+margin_top = st.sidebar.slider("Top Margin", 20, 100, 50)
+margin_bottom = st.sidebar.slider("Bottom Margin", 20, 100, 50)
+
+# Input words
+words_input = st.text_area("Enter words (comma separated)", "Apple, Ball, Cat, Dog, Egg, Fish")
+
+words = [w.strip() for w in words_input.split(",") if w.strip()]
+
+if st.button("Generate Practice PDF"):
+    output_file = "practice_sheet.pdf"
+    create_practice_pdf(words, output_file,
+                        clone_count=clone_count,
+                        font_choice=font_choice if font_choice=="Helvetica" else font_choice.replace(".ttf",""),
+                        margins=(margin_left, margin_right, margin_top, margin_bottom))
+    with open(output_file, "rb") as f:
+        st.download_button("📥 Download PDF", f, file_name=output_file)
 
 # ------------------------
 # Streamlit UI
@@ -357,4 +451,5 @@ if go_defs:
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption("© Brain-Child — Tracing Generator + Dictionary Explorer • 6 words/page ‘golden middle’ layout")
+
 
