@@ -179,145 +179,106 @@ for fname in FONTS.values():
 
 # ------------------------
 # PDF Generator Function
-# ------------------------
-def create_practice_pdf(words, filename, clone_count=5, font_choice="Helvetica", margins=(50,50,50,50)):
-    left, right, top, bottom = margins
-    doc = SimpleDocTemplate(filename, pagesize=A4,
-                            leftMargin=left, rightMargin=right,
-                            topMargin=top, bottomMargin=bottom)
+# ------------------------------
+def create_pdf_content(words, clone_count, font_choice, margins):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
-    story = []
+    col_width = (width - margins["left"] - margins["right"]) / 2
+    row_height = 100  # space per word
+    words_per_col = 3  # 3 rows per column → 6 words per page
+    x_positions = [margins["left"], margins["left"] + col_width]
+    y_start = height - margins["top"]
 
-    # Bold model word
-    model_style = ParagraphStyle(
-        'ModelWord',
-        fontName=font_choice,
-        fontSize=28,
-        alignment=TA_CENTER,
-        leading=34,
-        textColor=colors.black
-    )
+    word_index = 0
+    while word_index < len(words):
+        for col in range(2):
+            for row in range(words_per_col):
+                if word_index >= len(words):
+                    break
 
-    # Trace word (Light Grey)
-    trace_style = ParagraphStyle(
-        'TraceWord',
-        fontName=font_choice,
-        fontSize=28,
-        alignment=TA_CENTER,
-        leading=34,
-        textColor=colors.grey
-    )
+                word = words[word_index]
+                x = x_positions[col]
+                y = y_start - row * row_height
 
-    # Layout: 2-column grid (6 words per page)
-    usable_width = A4[0] - (left + right)
-    col_width = usable_width / 2
+                # Bold main word
+                c.setFont(font_choice, 22)
+                c.setFillColor(colors.black)
+                c.drawCentredString(x + col_width / 2, y, word)
 
-    for i, word in enumerate(words):
-        # Model word
-        story.append(Paragraph(word, model_style))
-        story.append(Spacer(1, 0.2 * cm))
+                # Clone words (light gray, same size, positioned below main word)
+                c.setFont(font_choice, 22)
+                c.setFillColor(colors.lightgrey)
+                for i in range(clone_count):
+                    clone_y = y - (i + 1) * 25
+                    c.drawCentredString(x + col_width / 2, clone_y, word)
 
-        # Clones
-        for _ in range(clone_count):
-            story.append(Paragraph(word, trace_style))
-            story.append(Spacer(1, 0.2 * cm))
+                word_index += 1
 
-        # After every 2 words, add a spacer for column gap
-        if (i+1) % 2 == 0:
-            story.append(Spacer(1, 1.5 * cm))
+        c.showPage()  # new page
 
-        # After 6 words, new page
-        if (i+1) % 6 == 0 and (i+1) < len(words):
-            story.append(PageBreak())
+    c.save()
+    buffer.seek(0)
+    return buffer
 
-    doc.build(story)
-    return filename
 
-# ------------------------
+# ------------------------------
 # Streamlit UI
-# ------------------------
-st.title("✏️ Kids English Word Tracer Generator")
+# ------------------------------
+st.title("✏️ English Word Practice – Tracing PDF + Dictionary Explorer")
 
-# Sidebar Controls
-st.sidebar.header("⚙️ Settings")
-clone_count = st.sidebar.slider("Number of trace clones per word", 3, 10, 5)
-font_choice = st.sidebar.selectbox("Font Style", list(FONTS.keys()))
-margin_left = st.sidebar.slider("Left Margin", 20, 80, 50)
-margin_right = st.sidebar.slider("Right Margin", 20, 80, 50)
-margin_top = st.sidebar.slider("Top Margin", 20, 100, 50)
-margin_bottom = st.sidebar.slider("Bottom Margin", 20, 100, 50)
+# --- Default constants ---
+DEFAULT_CLONE_COUNT = 5
+DEFAULT_FONT = "Helvetica-Bold"
+DEFAULT_MARGINS = {"left": 50, "right": 50, "top": 50, "bottom": 50}
 
-# Input words
-words_input = st.text_area("Enter words (comma separated)", "Apple, Ball, Cat, Dog, Egg, Fish")
+# --- Toggle for Settings ---
+with st.expander("⚙️ Advanced Settings (optional)", expanded=False):
+    clone_count = st.number_input("Number of trace clones per word", 3, 10, DEFAULT_CLONE_COUNT)
+    font_choice = st.selectbox("Font choice", ["Helvetica-Bold", "Times-Bold", "Courier-Bold"], index=0)
+    margin_left = st.number_input("Left Margin (px)", 20, 100, DEFAULT_MARGINS["left"])
+    margin_right = st.number_input("Right Margin (px)", 20, 100, DEFAULT_MARGINS["right"])
+    margin_top = st.number_input("Top Margin (px)", 20, 100, DEFAULT_MARGINS["top"])
+    margin_bottom = st.number_input("Bottom Margin (px)", 20, 100, DEFAULT_MARGINS["bottom"])
+    margins = {
+        "left": margin_left,
+        "right": margin_right,
+        "top": margin_top,
+        "bottom": margin_bottom,
+    }
 
-words = [w.strip() for w in words_input.split(",") if w.strip()]
+# --- If not opened → just use defaults ---
+if "clone_count" not in locals():
+    clone_count = DEFAULT_CLONE_COUNT
+    font_choice = DEFAULT_FONT
+    margins = DEFAULT_MARGINS
 
-if st.button("Generate Practice PDF"):
-    output_file = "practice_sheet.pdf"
-    create_practice_pdf(words, output_file,
-                        clone_count=clone_count,
-                        font_choice=font_choice if font_choice=="Helvetica" else font_choice.replace(".ttf",""),
-                        margins=(margin_left, margin_right, margin_top, margin_bottom))
-    with open(output_file, "rb") as f:
-        st.download_button("📥 Download PDF", f, file_name=output_file)
+# ------------------------------
+# Word Input
+# ------------------------------
+st.subheader("📖 Enter English Words")
+word_input = st.text_area("Type words separated by commas", "apple, ball, cat, dog, egg, fish")
+words = [w.strip() for w in word_input.split(",") if w.strip()]
 
+# ------------------------------
+# PDF Download
+# ------------------------------
+if st.button("📥 Generate PDF"):
+    if words:
+        pdf_buffer = create_pdf_content(words, clone_count, font_choice, margins)
+        st.download_button("⬇️ Download Tracing PDF", data=pdf_buffer,
+                           file_name="tracing_words.pdf", mime="application/pdf")
+    else:
+        st.warning("Please enter at least one word.")
 
-# ------------------------
-# Streamlit UI
-# ------------------------
-st.title("✏️ Kids English Word Tracer Generator")
-
-# Sidebar Controls
-st.sidebar.header("⚙️ Settings")
-clone_count = st.sidebar.slider("Number of trace clones per word", 3, 10, 5)
-font_choice = st.sidebar.selectbox("Font Style", list(FONTS.keys()))
-margin_left = st.sidebar.slider("Left Margin", 20, 80, 50)
-margin_right = st.sidebar.slider("Right Margin", 20, 80, 50)
-margin_top = st.sidebar.slider("Top Margin", 20, 100, 50)
-margin_bottom = st.sidebar.slider("Bottom Margin", 20, 100, 50)
-
-# Input words
-words_input = st.text_area("Enter words (comma separated)", "Apple, Ball, Cat, Dog, Egg, Fish")
-
-words = [w.strip() for w in words_input.split(",") if w.strip()]
-
-if st.button("Generate Practice PDF"):
-    output_file = "practice_sheet.pdf"
-    create_practice_pdf(words, output_file,
-                        clone_count=clone_count,
-                        font_choice=font_choice if font_choice=="Helvetica" else font_choice.replace(".ttf",""),
-                        margins=(margin_left, margin_right, margin_top, margin_bottom))
-    with open(output_file, "rb") as f:
-        st.download_button("📥 Download PDF", f, file_name=output_file)
-
-# ------------------------
-# Streamlit UI
-# ------------------------
-st.title("✏️ Kids English Word Tracer Generator")
-
-# Sidebar Controls
-st.sidebar.header("⚙️ Settings")
-clone_count = st.sidebar.slider("Number of trace clones per word", 3, 10, 5)
-font_choice = st.sidebar.selectbox("Font Style", list(FONTS.keys()))
-margin_left = st.sidebar.slider("Left Margin", 20, 80, 50)
-margin_right = st.sidebar.slider("Right Margin", 20, 80, 50)
-margin_top = st.sidebar.slider("Top Margin", 20, 100, 50)
-margin_bottom = st.sidebar.slider("Bottom Margin", 20, 100, 50)
-
-# Input words
-words_input = st.text_area("Enter words (comma separated)", "Apple, Ball, Cat, Dog, Egg, Fish")
-
-words = [w.strip() for w in words_input.split(",") if w.strip()]
-
-if st.button("Generate Practice PDF"):
-    output_file = "practice_sheet.pdf"
-    create_practice_pdf(words, output_file,
-                        clone_count=clone_count,
-                        font_choice=font_choice if font_choice=="Helvetica" else font_choice.replace(".ttf",""),
-                        margins=(margin_left, margin_right, margin_top, margin_bottom))
-    with open(output_file, "rb") as f:
-        st.download_button("📥 Download PDF", f, file_name=output_file)
-
+# ------------------------------
+# Simple Dictionary Explorer (Mock)
+# ------------------------------
+st.subheader("📚 Dictionary Explorer")
+if words:
+    selected_word = st.selectbox("Choose a word", words)
+    st.write(f"**{selected_word}** → Meaning (You can connect to dictionary API here)")
 
 # ------------------ LEFT: Suffix Finder ------------------
 with st.container():
@@ -451,5 +412,6 @@ if go_defs:
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption("© Brain-Child — Tracing Generator + Dictionary Explorer • 6 words/page ‘golden middle’ layout")
+
 
 
