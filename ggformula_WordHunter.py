@@ -11,13 +11,15 @@ import sys
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.colors import black, darkgrey
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.enums import TA_CENTER
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.colors import black
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from io import BytesIO
 
 # -------------------------------------------------------------------
 # Streamlit Page Config (must be at the very top)
@@ -119,58 +121,77 @@ def find_synonyms(word):
     return list(synonyms)
 
 # -------------------------------------------------------------------
-# PDF Generator
+# ✅ Function to create handwriting practice PDF
 def create_pdf_content(words):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-                            leftMargin=0.5 * inch, rightMargin=0.5 * inch,
-                            topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=A4,
+        leftMargin=0.8 * inch,
+        rightMargin=0.8 * inch,
+        topMargin=0.8 * inch,
+        bottomMargin=0.8 * inch
+    )
+
     styles = getSampleStyleSheet()
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'],
-                                      fontName='Helvetica-Bold', fontSize=24,
-                                      leading=28, textColor=black, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'],
-                                  fontName='STSong-Light', fontSize=24,
-                                  leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    
+
+    # ✨ Try registering dotted handwriting font
+    try:
+        pdfmetrics.registerFont(TTFont('Dotted', 'KGPrimaryDots.ttf'))  # Keep font in same folder
+        dotted_font = 'Dotted'
+    except:
+        dotted_font = 'Courier'  # fallback if font missing
+
+    bold_style = ParagraphStyle(
+        'BoldWord', parent=styles['Normal'],
+        fontName='Helvetica-Bold', fontSize=28,
+        leading=34, textColor=black, alignment=TA_CENTER
+    )
+
+    trace_style = ParagraphStyle(
+        'TraceWord', parent=styles['Normal'],
+        fontName=dotted_font, fontSize=28,
+        leading=34, textColor=black, alignment=TA_CENTER
+    )
+
+    empty_line_style = ParagraphStyle(
+        'EmptyLine', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=28,
+        leading=34, textColor=black, alignment=TA_CENTER
+    )
+
     story = []
+
+    # Header Section
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
-    story.append(Spacer(1, 0.5 * inch))
-    story.append(Paragraph("<b> G.GEORGE - BRAIN-CHILD DICTIONARY</b>", styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
-    
-    words_per_page = 15
-    words_to_process = words[:words_per_page * 10]
-    
-    for i in range(0, len(words_to_process), words_per_page):
-        if i > 0:
+    story.append(Spacer(1, 0.4 * inch))
+    story.append(Paragraph("<b>Handwriting Practice Sheet</b>", styles['Title']))
+    story.append(Spacer(1, 0.4 * inch))
+
+    # Words per page (each word uses ~4 lines)
+    words_per_page = 7  
+
+    for i, word in enumerate(words):
+        if i > 0 and i % words_per_page == 0:
             story.append(PageBreak())
-        
-        page_words = words_to_process[i:i + words_per_page]
-        table_data = [['' for _ in range(4)] for _ in range(5)]
-        
-        for j, word in enumerate(page_words):
-            col_index = j % 4
-            row_index = j // 4
-            cell_content = []
-            cell_content.append(Paragraph(f"<b>{word}</b>", penmanship_style))
-            for _ in range(4):
-                cell_content.append(Paragraph(word, normal_style))
-            table_data[row_index][col_index] = cell_content
-        
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ]
-        story.append(Table(table_data, colWidths=[2*inch]*4, style=table_style))
-        story.append(Spacer(1, 0.5 * inch))
-    
+
+        # Line 1 → Bold reference word
+        story.append(Paragraph(word, bold_style))
+        story.append(Spacer(1, 0.1 * inch))
+
+        # Line 2 → Dotted trace word
+        story.append(Paragraph(word, trace_style))
+        story.append(Spacer(1, 0.1 * inch))
+
+        # Line 3 & 4 → Empty underline (children write here)
+        story.append(Paragraph(" ".join(["_____" for _ in word]), empty_line_style))
+        story.append(Spacer(1, 0.15 * inch))
+        story.append(Paragraph(" ".join(["_____" for _ in word]), empty_line_style))
+        story.append(Spacer(1, 0.4 * inch))
+
     story.append(Spacer(1, 0.5 * inch))
     story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
+
     doc.build(story)
     return buffer.getvalue()
 
@@ -286,3 +307,4 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
