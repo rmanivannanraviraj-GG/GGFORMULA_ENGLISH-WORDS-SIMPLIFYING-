@@ -19,6 +19,15 @@ from reportlab.lib.units import cm
 from reportlab.lib import colors
 
 # -------------------------------------------------------------------
+import sys
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except AttributeError:
+    # Older Python versions don't have reconfigure
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
 # Streamlit Page Config
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 
@@ -339,6 +348,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
