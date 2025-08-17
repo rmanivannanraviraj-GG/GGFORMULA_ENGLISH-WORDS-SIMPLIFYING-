@@ -150,7 +150,7 @@ def create_pdf_content(words):
     # opacity directly on text, so we'll use a different font or color.
     # For this example, we'll use a slightly different style to represent 'opacity'.
     dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica', fontSize=22, alignment=TA_CENTER)
     
     story = []
     
@@ -158,7 +158,7 @@ def create_pdf_content(words):
     story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
     story.append(Spacer(1, 0.5 * inch))
     
-    story.append(Paragraph("<b> G.GEORGE - BRAIN-CHILD DICTIONARY</b>", styles['Title']))
+    story.append(Paragraph("<b>Handwriting Practice</b>", styles['Title']))
     story.append(Spacer(1, 0.5 * inch))
     
     words_per_page = 15
@@ -169,31 +169,50 @@ def create_pdf_content(words):
             story.append(PageBreak())
         
         page_words = words_to_process[i:i + words_per_page]
-                
-        # Create a table for each page with 4 columns and 5 rows
-        table_data = [['' for _ in range(4)] for _ in range(5)]
         
-        for j, word in enumerate(page_words):
-            col_index = j % 4
-            row_index = j // 4
-            
-            cell_content = []
-            cell_content.append(Paragraph(f"<b>{word}</b>", penmanship_style))
-            for _ in range(4):
-                cell_content.append(Paragraph(word, normal_style))
-                
-            table_data[row_index][col_index] = cell_content
+        table_data = []
         
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ]
+        # Split words into 3 rows of 5 words each
+        row1_words = page_words[:5]
+        row2_words = page_words[5:10]
+        row3_words = page_words[10:15]
 
-        story.append(Table(table_data, colWidths=[2*inch]*4, style=table_style))
-        story.append(Spacer(1, 0.5 * inch))
+        # Create table for each row of words
+        def create_word_table(word_list):
+            table_rows = []
+            bold_row = [Paragraph(f"<b>{word}</b>", penmanship_style) for word in word_list]
+            table_rows.append(bold_row)
+            for _ in range(4):
+                clone_row = [Paragraph(word, dotted_style) for word in page_words]
+            table_data.append(clone_row)
+            return table_rows
+
+        if row1_words:
+            story.append(Table(create_word_table(row1_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
+            
+        if row2_words:
+            story.append(Table(create_word_table(row2_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
+
+        if row3_words:
+            story.append(Table(create_word_table(row3_words), colWidths=[1.5*inch]*5, style=[
+                ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+                ('BOX', (0,0), (-1,-1), 0.25, black),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(Spacer(1, 0.5 * inch))
 
     # Footer
     story.append(Spacer(1, 0.5 * inch))
@@ -201,7 +220,6 @@ def create_pdf_content(words):
 
     doc.build(story)
     return buffer.getvalue()
-
 
 # --- Main Streamlit App Layout ---
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
@@ -309,6 +327,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
