@@ -152,7 +152,8 @@ with st.container():
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Tracer Generator
-swith st.container():
+with st.container():
+
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.subheader("Tracer PDF Generator")
     st.write("📄 PDF will generate worksheets with **6 words per page** (auto-set).")
@@ -186,3 +187,4 @@ with st.container():
         st.table(df2)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
