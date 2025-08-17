@@ -11,15 +11,12 @@ import sys
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.enums import TA_CENTER
-from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from io import BytesIO
+from reportlab.lib.units import cm
 
 # -------------------------------------------------------------------
 # Streamlit Page Config (must be at the very top)
@@ -121,79 +118,82 @@ def find_synonyms(word):
     return list(synonyms)
 
 # -------------------------------------------------------------------
-# ✅ Function to create handwriting practice PDF
-def create_pdf_content(words):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer, 
-        pagesize=A4,
-        leftMargin=0.8 * inch,
-        rightMargin=0.8 * inch,
-        topMargin=0.8 * inch,
-        bottomMargin=0.8 * inch
-    )
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.enums import TA_CENTER
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.units import cm
 
-    styles = getSampleStyleSheet()
+# 🔹 1. உங்கள் dotted font file register பண்ணுங்க
+try:
+    pdfmetrics.registerFont(TTFont('Dotted', 'KGPrimaryDots.ttf'))  # உங்கள் folder-ல் இருக்கணும்
+    dotted_font = 'Dotted'
+except:
+    dotted_font = 'Courier'  # fallback if font not found
 
-    # ✨ Try registering dotted handwriting font
-    try:
-        pdfmetrics.registerFont(TTFont('Dotted', 'KGPrimaryDots.ttf'))  # Keep font in same folder
-        dotted_font = 'Dotted'
-    except:
-        dotted_font = 'Courier'  # fallback if font missing
 
-    bold_style = ParagraphStyle(
-        'BoldWord', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=28,
-        leading=34, textColor=black, alignment=TA_CENTER
-    )
-
-    trace_style = ParagraphStyle(
-        'TraceWord', parent=styles['Normal'],
-        fontName=dotted_font, fontSize=28,
-        leading=34, textColor=black, alignment=TA_CENTER
-    )
-
-    empty_line_style = ParagraphStyle(
-        'EmptyLine', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=28,
-        leading=34, textColor=black, alignment=TA_CENTER
-    )
-
+# 🔹 2. Practice sheet உருவாக்கும் function
+def create_practice_pdf(words, filename="handwriting_practice.pdf"):
+    doc = SimpleDocTemplate(filename, pagesize=A4,
+                            rightMargin=50, leftMargin=50,
+                            topMargin=50, bottomMargin=50)
     story = []
 
-    # Header Section
-    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
-    story.append(Spacer(1, 0.4 * inch))
-    story.append(Paragraph("<b>Handwriting Practice Sheet</b>", styles['Title']))
-    story.append(Spacer(1, 0.4 * inch))
+    # Model word style (Bold)
+    model_style = ParagraphStyle(
+        'ModelWord',
+        fontName="Helvetica-Bold",
+        fontSize=28,
+        alignment=TA_CENTER,
+        leading=34
+    )
 
-    # Words per page (each word uses ~4 lines)
-    words_per_page = 7  
+    # Dotted trace word style
+    trace_style = ParagraphStyle(
+        'TraceWord',
+        fontName=dotted_font,
+        fontSize=28,
+        alignment=TA_CENTER,
+        leading=34
+    )
 
-    for i, word in enumerate(words):
-        if i > 0 and i % words_per_page == 0:
-            story.append(PageBreak())
+    # Empty line style (for writing practice)
+    line_style = ParagraphStyle(
+        'LineWord',
+        fontName="Helvetica",
+        fontSize=28,
+        alignment=TA_CENTER,
+        leading=34
+    )
 
-        # Line 1 → Bold reference word
-        story.append(Paragraph(word, bold_style))
-        story.append(Spacer(1, 0.1 * inch))
+    # 🔹 3. ஒவ்வொரு வார்த்தைக்கும் பின்வரும் அமைப்பு வரும்
+    for word in words:
+        # Model word (Bold)
+        story.append(Paragraph(word, model_style))
+        story.append(Spacer(1, 0.5 * cm))
 
-        # Line 2 → Dotted trace word
+        # Trace word (Dotted Font)
         story.append(Paragraph(word, trace_style))
-        story.append(Spacer(1, 0.1 * inch))
+        story.append(Spacer(1, 0.5 * cm))
 
-        # Line 3 & 4 → Empty underline (children write here)
-        story.append(Paragraph(" ".join(["_____" for _ in word]), empty_line_style))
-        story.append(Spacer(1, 0.15 * inch))
-        story.append(Paragraph(" ".join(["_____" for _ in word]), empty_line_style))
-        story.append(Spacer(1, 0.4 * inch))
+        # 2 Empty Lines for practice
+        story.append(Paragraph("____________________", line_style))
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("____________________", line_style))
+        story.append(Spacer(1, 1.2 * cm))  # space before next word
 
-    story.append(Spacer(1, 0.5 * inch))
-    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
-
+    # PDF Build
     doc.build(story)
-    return buffer.getvalue()
+    print(f"✅ Handwriting practice PDF saved as {filename}")
+
+
+# 🔹 4. Example usage
+if __name__ == "__main__":
+    word_list = ["Apple", "Ball", "Cat", "Dog", "Elephant"]
+    create_practice_pdf(word_list, "kids_handwriting_practice.pdf")
+
 
 # -------------------------------------------------------------------
 # --- Main Streamlit App Layout ---
@@ -307,4 +307,5 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
