@@ -1,13 +1,11 @@
 import streamlit as st
-import pandas as pd
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Flowable
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.units import cm
+from reportlab.lib import colors
 from io import BytesIO
-from pathlib import Path
-from deep_translator import GoogleTranslator
-from nltk.corpus import wordnet
-import nltk
-from concurrent.futures import ThreadPoolExecutor
-import os
-import sys
 
 # For PDF generation
 from reportlab.lib.pagesizes import A4
@@ -125,7 +123,26 @@ if os.path.exists("KGPrimaryDots.ttf"):  # keep the TTF file in same folder
     practice_font = "Dotted"
 
 # -------------------------------------------------------------------
-# PDF Generator (BytesIO version for Streamlit)
+# ---------- Custom Flowable for Tracing with Underline ----------
+class UnderlinedWord(Flowable):
+    def __init__(self, word, style, width=400):
+        Flowable.__init__(self)
+        self.word = word
+        self.style = style
+        self.width = width
+        self.height = 40  # approx line height
+
+    def draw(self):
+        from reportlab.platypus.paragraph import Paragraph
+        p = Paragraph(self.word, self.style)
+        w, h = p.wrap(self.width, 0)
+        p.drawOn(self.canv, 0, 0)
+        # Draw dashed underline
+        self.canv.setStrokeColor(colors.lightgrey)
+        self.canv.setDash(3, 2)  # dashed pattern
+        self.canv.line(0, -2, self.width, -2)
+
+# ---------- PDF Generator ----------
 def create_pdf_content(words):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -136,21 +153,24 @@ def create_pdf_content(words):
     )
     story = []
 
+    # Model (black) style
     model_style = ParagraphStyle(
         'ModelWord',
-        fontName=practice_font,
+        fontName="Helvetica-Bold",
         fontSize=32,
         alignment=TA_CENTER,
         leading=40,
         textColor=colors.black
     )
+
+    # Tracing (light grey) style
     trace_style = ParagraphStyle(
         'TraceWord',
-        fontName=practice_font,
+        fontName="Helvetica-Bold",
         fontSize=32,
         alignment=TA_CENTER,
         leading=40,
-        textColor=colors.darkgrey
+        textColor=colors.lightgrey
     )
 
     usable_height = A4[1] - 100
@@ -162,19 +182,37 @@ def create_pdf_content(words):
         else:
             story.append(Spacer(1, section_height - (6 * 40)))
 
+        # Main word (Black)
         story.append(Paragraph(word, model_style))
         story.append(Spacer(1, 0.4 * cm))
 
+        # 5 tracing rows with underline
         for _ in range(5):
-            story.append(Paragraph(word, trace_style))
+            story.append(UnderlinedWord(word, trace_style, width=400))
             story.append(Spacer(1, 0.3 * cm))
 
+        # New page after 3 words
         if (idx + 1) % 3 == 0 and (idx + 1) < len(words):
             story.append(PageBreak())
 
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+# ---------- Streamlit App ----------
+st.title("✏️ English Tracing Practice Sheet Generator")
+
+words_input = st.text_area("Enter words (comma separated):", "Apple, Ball, Cat, Dog, Egg, Fish, Goat")
+words_for_tracer = [w.strip() for w in words_input.split(",") if w.strip()]
+
+if st.button("Generate PDF"):
+    pdf_buffer = create_pdf_content(words_for_tracer)
+    st.download_button(
+        "📥 Download Practice Sheet",
+        data=pdf_buffer,
+        file_name="tracing_practice_sheet.pdf",
+        mime="application/pdf"
+    )
 
 # -------------------------------------------------------------------
 # --- Main Streamlit App Layout ---
@@ -288,3 +326,4 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
