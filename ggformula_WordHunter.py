@@ -4,17 +4,9 @@ import os
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
 import streamlit as st
 import pandas as pd
-import streamlit as st
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-import os
 
 # NLTK / WordNet
 import nltk
@@ -117,168 +109,96 @@ if DO_TTF:
     except Exception:
         DO_TTF = False
 
-import streamlit as st
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-import os
+# ------------------ PDF: Tracing Sheet (6 words/page) ------------------
+def create_tracer_pdf_buffer(
+    words,
+    clones_per_word=5,
+    words_per_page=6,
+    font_name_main="Helvetica-Bold",
+    font_name_clone="Helvetica-Bold",
+    font_size_main=28,
+    font_size_clone=28,
+    underline_full_width=True,
+    column_gap=40,
+    margins=(50, 50, 50, 50), # left, right, top, bottom
+):
+    """
+    Returns a BytesIO buffer with the generated PDF.
+    Layout: 2 columns x 3 rows = 6 words per page.
+    Each word: 1 black bold model + N (default 5) light-grey bold clone rows with dashed underline.
+    """
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    page_w, page_h = A4
 
-# ------------------------
-# Register extra fonts (optional for kids handwriting)
-# ------------------------
-FONTS = {
-    "Helvetica": "Helvetica",
-    "Comic Sans": "ComicSansMS.ttf",   # you need to keep this .ttf file in project folder
-    "Arial": "Arial.ttf"
-}
+    left_margin, right_margin, top_margin, bottom_margin = margins
+    usable_w = page_w - left_margin - right_margin
 
-for fname in FONTS.values():
-    if fname.endswith(".ttf") and os.path.exists(fname):
-        pdfmetrics.registerFont(TTFont(fname.replace(".ttf",""), fname))
+    # Columns
+    col_gap = column_gap
+    col_w = (usable_w - col_gap) / 2.0
+    x_cols = [left_margin, left_margin + col_w + col_gap]
 
-# ------------------------
-# Register extra fonts (optional for kids handwriting)
-# ------------------------
-FONTS = {
-    "Helvetica": "Helvetica",
-    "Comic Sans": "ComicSansMS.ttf",   # you need to keep this .ttf file in project folder
-    "Arial": "Arial.ttf"
-}
+    # Fonts
+    font_main = font_name_main if not DO_TTF else "Dotted"  # If dotted available, use it for fun
+    font_clone = font_name_clone if not DO_TTF else "Dotted"
 
-for fname in FONTS.values():
-    if fname.endswith(".ttf") and os.path.exists(fname):
-        pdfmetrics.registerFont(TTFont(fname.replace(".ttf",""), fname))
+    # Vertical sizing
+    line_height = 40  # gap under main
+    clone_gap = 10
+    block_height = font_size_main + (font_size_clone + clone_gap) * clones_per_word + 60
 
-# ------------------------
-import streamlit as st
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-import os
+    y_start = page_h - top_margin
 
-# ------------------------
-# Register extra fonts (optional for kids handwriting)
-# ------------------------
-FONTS = {
-    "Helvetica": "Helvetica",
-    "Comic Sans": "ComicSansMS.ttf",   # you need to keep this .ttf file in project folder
-    "Arial": "Arial.ttf"
-}
+    for idx, word in enumerate(words):
+        page_idx = idx % words_per_page
+        col = page_idx % 2
 
-for fname in FONTS.values():
-    if fname.endswith(".ttf") and os.path.exists(fname):
-        pdfmetrics.registerFont(TTFont(fname.replace(".ttf",""), fname))
+        if col == 0 and page_idx > 0:
+            # move down a row after placing in right column previously
+            y_start -= block_height
 
-# ------------------------
-# PDF Generator Function
-# ------------------------------
-def create_pdf_content(words, clone_count, font_choice, margins):
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+        if page_idx == 0 and idx > 0:
+            # new page
+            c.showPage()
+            y_start = page_h - top_margin
 
-    col_width = (width - margins["left"] - margins["right"]) / 2
-    row_height = 100  # space per word
-    words_per_col = 3  # 3 rows per column → 6 words per page
-    x_positions = [margins["left"], margins["left"] + col_width]
-    y_start = height - margins["top"]
+        x = x_cols[col]
 
-    word_index = 0
-    while word_index < len(words):
-        for col in range(2):
-            for row in range(words_per_col):
-                if word_index >= len(words):
-                    break
+        # Model word
+        c.setFont(font_main, font_size_main)
+        c.setFillColor(colors.black)
+        c.drawCentredString(x + col_w / 2, y_start, word)
 
-                word = words[word_index]
-                x = x_positions[col]
-                y = y_start - row * row_height
+        # Clones (light grey bold) + dashed underline
+        c.setFont(font_clone, font_size_clone)
+        c.setFillColor(colors.lightgrey)
 
-                # Bold main word
-                c.setFont(font_choice, 22)
-                c.setFillColor(colors.black)
-                c.drawCentredString(x + col_width / 2, y, word)
+        y_clone = y_start - line_height
+        for _ in range(clones_per_word):
+            c.drawCentredString(x + col_w / 2, y_clone, word)
 
-                # Clone words (light gray, same size, positioned below main word)
-                c.setFont(font_choice, 22)
-                c.setFillColor(colors.lightgrey)
-                for i in range(clone_count):
-                    clone_y = y - (i + 1) * 25
-                    c.drawCentredString(x + col_width / 2, clone_y, word)
-
-                word_index += 1
-
-        c.showPage()  # new page
+            # Underline
+            underline_y = y_clone - 5
+            c.setDash(3, 3)
+            if underline_full_width:
+                # full column width (better writing space)
+                c.line(x, underline_y, x + col_w, underline_y)
+            else:
+                # just under the word width
+                w = c.stringWidth(word, font_clone, font_size_clone)
+                c.line(
+                    x + (col_w - w) / 2,
+                    underline_y,
+                    x + (col_w + w) / 2,
+                    underline_y
+                )
+            c.setDash()  # reset
+            y_clone -= (font_size_clone + clone_gap)
 
     c.save()
-    buffer.seek(0)
-    return buffer
-
-
-# ------------------------------
-# Streamlit UI
-# ------------------------------
-st.title("✏️ English Word Practice – Tracing PDF + Dictionary Explorer")
-
-# --- Default constants ---
-DEFAULT_CLONE_COUNT = 5
-DEFAULT_FONT = "Helvetica-Bold"
-DEFAULT_MARGINS = {"left": 50, "right": 50, "top": 50, "bottom": 50}
-
-# --- Toggle for Settings ---
-with st.expander("⚙️ Advanced Settings (optional)", expanded=False):
-    clone_count = st.number_input("Number of trace clones per word", 3, 10, DEFAULT_CLONE_COUNT)
-    font_choice = st.selectbox("Font choice", ["Helvetica-Bold", "Times-Bold", "Courier-Bold"], index=0)
-    margin_left = st.number_input("Left Margin (px)", 20, 100, DEFAULT_MARGINS["left"])
-    margin_right = st.number_input("Right Margin (px)", 20, 100, DEFAULT_MARGINS["right"])
-    margin_top = st.number_input("Top Margin (px)", 20, 100, DEFAULT_MARGINS["top"])
-    margin_bottom = st.number_input("Bottom Margin (px)", 20, 100, DEFAULT_MARGINS["bottom"])
-    margins = {
-        "left": margin_left,
-        "right": margin_right,
-        "top": margin_top,
-        "bottom": margin_bottom,
-    }
-
-# --- If not opened → just use defaults ---
-if "clone_count" not in locals():
-    clone_count = DEFAULT_CLONE_COUNT
-    font_choice = DEFAULT_FONT
-    margins = DEFAULT_MARGINS
-
-# ------------------------------
-# Word Input
-# ------------------------------
-st.subheader("📖 Enter English Words")
-word_input = st.text_area("Type words separated by commas", "apple, ball, cat, dog, egg, fish")
-words = [w.strip() for w in word_input.split(",") if w.strip()]
-
-# ------------------------------
-# PDF Download
-# ------------------------------
-if st.button("📥 Generate PDF"):
-    if words:
-        pdf_buffer = create_pdf_content(words, clone_count, font_choice, margins)
-        st.download_button("⬇️ Download Tracing PDF", data=pdf_buffer,
-                           file_name="tracing_words.pdf", mime="application/pdf")
-    else:
-        st.warning("Please enter at least one word.")
-
-# ------------------------------
-# Simple Dictionary Explorer (Mock)
-# ------------------------------
-st.subheader("📚 Dictionary Explorer")
-if words:
-    selected_word = st.selectbox("Choose a word", words)
-    st.write(f"**{selected_word}** → Meaning (You can connect to dictionary API here)")
+    buf.seek(0)
+    return buf
 
 # ------------------ LEFT: Suffix Finder ------------------
 with st.container():
@@ -412,6 +332,3 @@ if go_defs:
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption("© Brain-Child — Tracing Generator + Dictionary Explorer • 6 words/page ‘golden middle’ layout")
-
-
-
