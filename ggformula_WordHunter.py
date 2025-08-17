@@ -170,7 +170,7 @@ def create_pdf_content(words):
         
         page_words = words_to_process[i:i + words_per_page]
         
-        table_data = []
+        table_data = [['' for _ in range(4)] for _ in range(5)]
         
         # Split words into 3 rows of 5 words each
         row1_words = page_words[:5]
@@ -327,6 +327,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
