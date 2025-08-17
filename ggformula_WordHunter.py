@@ -143,61 +143,108 @@ class UnderlinedWord(Flowable):
         self.canv.line(0, -2, self.width, -2)
 
 # ---------- PDF Generator ----------
-def create_pdf_content(words):
-    buffer = BytesIO()
+def create_practice_pdf(words, filename="english_practice_sheet.pdf"):
     doc = SimpleDocTemplate(
-        buffer,
+        filename,
         pagesize=A4,
-        rightMargin=50, leftMargin=50,
-        topMargin=50, bottomMargin=50
+        rightMargin=40, leftMargin=40,
+        topMargin=40, bottomMargin=40
     )
     story = []
 
-    # Model (black) style
+    # Styles
     model_style = ParagraphStyle(
         'ModelWord',
         fontName="Helvetica-Bold",
-        fontSize=32,
+        fontSize=28,
         alignment=TA_CENTER,
-        leading=40,
+        leading=34,
         textColor=colors.black
     )
 
-    # Tracing (light grey) style
     trace_style = ParagraphStyle(
         'TraceWord',
-        fontName="Helvetica-Bold",
-        fontSize=32,
+        fontName="Helvetica-Bold",   # same bold font (size matches)
+        fontSize=28,
         alignment=TA_CENTER,
-        leading=40,
+        leading=34,
         textColor=colors.lightgrey
     )
 
-    usable_height = A4[1] - 100
-    section_height = usable_height / 3
+    # Split words into chunks of 6 (for each page)
+    for page_start in range(0, len(words), 6):
+        chunk = words[page_start:page_start+6]
 
-    for idx, word in enumerate(words):
-        if idx % 3 == 0:
-            story.append(Spacer(1, 0.5 * cm))
-        else:
-            story.append(Spacer(1, section_height - (6 * 40)))
+        # Arrange into 2 columns (left=3 words, right=3 words)
+        left_col = chunk[:3]
+        right_col = chunk[3:6]
 
-        # Main word (Black)
-        story.append(Paragraph(word, model_style))
-        story.append(Spacer(1, 0.4 * cm))
+        # Normalize column lengths
+        while len(left_col) < 3:
+            left_col.append("")
+        while len(right_col) < 3:
+            right_col.append("")
 
-        # 5 tracing rows with underline
-        for _ in range(5):
-            story.append(UnderlinedWord(word, trace_style, width=400))
-            story.append(Spacer(1, 0.3 * cm))
+        # Build table data row by row
+        table_data = []
+        for left_word, right_word in zip(left_col, right_col):
+            left_block, right_block = [], []
 
-        # New page after 3 words
-        if (idx + 1) % 3 == 0 and (idx + 1) < len(words):
+            # Left word block
+            if left_word:
+                left_block.append(Paragraph(left_word, model_style))
+                left_block.append(Spacer(1, 6))
+                for _ in range(5):
+                    trace_para = Paragraph(f"<u>{left_word}</u>", trace_style)
+                    left_block.append(trace_para)
+                    left_block.append(Spacer(1, 4))
+            else:
+                left_block.append(Spacer(1, 200))
+
+            # Right word block
+            if right_word:
+                right_block.append(Paragraph(right_word, model_style))
+                right_block.append(Spacer(1, 6))
+                for _ in range(5):
+                    trace_para = Paragraph(f"<u>{right_word}</u>", trace_style)
+                    right_block.append(trace_para)
+                    right_block.append(Spacer(1, 4))
+            else:
+                right_block.append(Spacer(1, 200))
+
+            # Add row to table
+            table_data.append([left_block, right_block])
+
+        # Create 2-column table
+        table = Table(
+            table_data,
+            colWidths=[(A4[0]-100)/2]*2,  # equal column widths
+            hAlign="CENTER"
+        )
+
+        table.setStyle(TableStyle([
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ("BOX", (0,0), (-1,-1), 0.5, colors.white),  # invisible
+        ]))
+
+        story.append(table)
+
+        # Page break
+        if page_start + 6 < len(words):
             story.append(PageBreak())
 
     doc.build(story)
-    buffer.seek(0)
-    return buffer
+    return filename
+
+
+# Example usage
+words = [
+    "Apple", "Ball", "Cat",
+    "Dog", "Egg", "Fish",
+    "Goat", "Hat", "Ice",
+    "Jug", "Kite", "Lion"
+]
+create_practice_pdf(words)
 
 # ---------- Streamlit App ----------
 st.title("✏️ English Tracing Practice Sheet Generator")
@@ -326,4 +373,5 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
