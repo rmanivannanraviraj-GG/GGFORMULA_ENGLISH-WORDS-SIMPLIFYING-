@@ -9,11 +9,26 @@ import requests
 import streamlit as st
 import pandas as pd
 import nltk
-from PyDictionary import PyDictionary
-dictionary = PyDictionary()
 
 from googletrans import Translator
 from nltk.corpus import wordnet
+from PyDictionary import PyDictionary
+
+# Initialize
+dictionary = PyDictionary()
+
+# Example
+word = "apple"
+
+meaning = dictionary.meaning(word)
+synonym = dictionary.synonym(word)
+antonym = dictionary.antonym(word)
+
+print("Word:", word)
+print("Meaning:", meaning)
+print("Synonyms:", synonym)
+print("Antonyms:", antonym)
+
 
 # Translator
 try:
@@ -189,5 +204,6 @@ with st.container():
         st.table(df2)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
