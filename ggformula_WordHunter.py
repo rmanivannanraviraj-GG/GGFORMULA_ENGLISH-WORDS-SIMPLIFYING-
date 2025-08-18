@@ -6,16 +6,14 @@ from deep_translator import GoogleTranslator
 from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
-import sys
-import os
-
-# PDF imports
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # Ensure WordNet
 try:
@@ -33,15 +31,9 @@ CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
 
 # POS mapping
-POS_MAP = {
-    'n': 'Noun',
-    'v': 'Verb',
-    'a': 'Adjective',
-    's': 'Adjective (Satellite)',
-    'r': 'Adverb'
-}
+POS_MAP = {'n': 'Noun','v': 'Verb','a': 'Adjective','s': 'Adjective (Satellite)','r': 'Adverb'}
 
-# Define TTF fallback
+# TTF font fallback
 DO_TTF = False
 
 # CSS Styling
@@ -55,7 +47,7 @@ body { font-family: 'Roboto', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-# Cached translation
+# Translation caching
 @st.cache_data(show_spinner=False)
 def translate_to_tamil(text: str):
     try:
@@ -63,14 +55,11 @@ def translate_to_tamil(text: str):
     except:
         return ""
 
-# Parallel translation wrapper
 def translate_list_parallel(texts, max_workers=10):
-    results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = list(executor.map(translate_to_tamil, texts))
-    return results
+        return list(executor.map(translate_to_tamil, texts))
 
-# Cached all WordNet words
+# Cached WordNet words
 @st.cache_data
 def get_all_words():
     return sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
@@ -81,7 +70,7 @@ def find_matches(words, suffix, before_letters):
     matched = []
     for w in words:
         if w.lower().endswith(suf):
-            if before_letters == 0 or len(w) - len(suf) == before_letters:
+            if before_letters == 0 or len(w)-len(suf) == before_letters:
                 matched.append(w)
     matched.sort(key=len)
     return matched
@@ -98,76 +87,80 @@ def create_tracer_pdf_buffer(words):
     col_w = (usable_w - col_gap)/2
     x_cols = [left_margin, left_margin + col_w + col_gap]
 
+    # Font handling
     font_main = "Helvetica-Bold"
+    if DO_TTF:
+        try:
+            pdfmetrics.registerFont(TTFont('Dotted', 'Dotted.ttf'))
+            font_main = 'Dotted'
+        except:
+            font_main = "Helvetica-Bold"
     font_clone = font_main
     font_size_main = 28
     font_size_clone = 28
     clones_per_word = 5
     line_height = 40
     clone_gap = 10
-    block_height = font_size_main + (font_size_clone + clone_gap)*clones_per_word + 60
+    block_height = font_size_main + (font_size_clone+clone_gap)*clones_per_word + 60
 
     y_start_orig = page_h - top_margin
     count_on_page = 0
     y_start = y_start_orig
 
     for idx, word in enumerate(words):
-        if count_on_page == 0 and idx > 0:
+        if count_on_page==0 and idx>0:
             c.showPage()
             y_start = y_start_orig
-        col = count_on_page % 2
-        if col == 0 and count_on_page > 0:
+        col = count_on_page %2
+        if col==0 and count_on_page>0:
             y_start -= block_height
         x = x_cols[col]
 
-        # Main word
         c.setFont(font_main, font_size_main)
         c.setFillColor(colors.black)
-        c.drawCentredString(x + col_w/2, y_start, word)
+        c.drawCentredString(x+col_w/2, y_start, word)
 
-        # Clone rows with dashed underline
         c.setFont(font_clone, font_size_clone)
         c.setFillColor(colors.lightgrey)
         y_clone = y_start - line_height
         for _ in range(clones_per_word):
-            c.drawCentredString(x + col_w/2, y_clone, word)
-            underline_y = y_clone - 6
+            c.drawCentredString(x+col_w/2, y_clone, word)
+            underline_y = y_clone-6
             c.setDash(3,3)
             c.setStrokeColor(colors.lightgrey)
             c.line(x+4, underline_y, x+col_w-4, underline_y)
             c.setDash()
-            y_clone -= (font_size_clone + clone_gap)
+            y_clone -= (font_size_clone+clone_gap)
 
-        count_on_page += 1
-        if count_on_page >= 6:
-            count_on_page = 0
+        count_on_page +=1
+        if count_on_page>=6: count_on_page=0
 
     c.save()
     buf.seek(0)
     return buf
 
-# Main App UI
+# Main UI
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    
-    col_input1, col_input2 = st.columns(2)
-    with col_input1:
+
+    # Inputs on top
+    col1_inputs, col2_inputs = st.columns(2)
+    with col1_inputs:
         before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
-    with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
+    with col2_inputs:
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only","Tamil Only","English + Tamil"], key='lang_choice_main')
 
     col1, col2 = st.columns(2, gap="large")
 
+    # Find Words
     with col1:
         st.subheader("🔎 Find Words")
-        with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
-            search_button = st.form_submit_button(label='Search Words')
+        suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
 
-        if search_button:
-            all_words = get_all_words()
+        all_words = get_all_words()
+        if suffix_input.strip():
             matches = find_matches(all_words, suffix_input, before_letters)
             st.session_state['matches'] = matches
             st.session_state['search_triggered'] = True
@@ -177,6 +170,7 @@ with st.container():
             else:
                 st.info("No results found.")
 
+    # PDF Tracer Generator
     with col2:
         st.subheader("📝 Word Tracer Generator")
         if st.session_state.get('search_triggered') and 'matches' in st.session_state:
@@ -184,61 +178,50 @@ with st.container():
             words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
         else:
             words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-        
-        tracer_button = st.button(label='Generate PDF')
+        tracer_button = st.button("Generate PDF")
         if tracer_button:
-            words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
+            words_for_tracer = [w.strip() for w in words_input.split('\n') if w.strip()]
             if words_for_tracer:
                 pdf_data = create_tracer_pdf_buffer(words_for_tracer)
-                st.download_button(
-                    label="Download Practice Sheet as PDF",
-                    data=pdf_data,
-                    file_name="word_tracer_sheet.pdf",
-                    mime="application/pdf"
-                )
+                st.download_button("Download Practice Sheet as PDF", data=pdf_data, file_name="word_tracer_sheet.pdf", mime="application/pdf")
 
-    # Word Definitions section
+    # Word Definitions
     st.markdown("---")
     st.subheader("📘 Word Definitions")
 
-    if st.session_state.get('search_triggered'):
-        if 'matches' in st.session_state:
-            matches = st.session_state['matches']
-            if matches:
-                data_rows = []
-                for word in matches:
-                    syns = wordnet.synsets(word)
-                    if not syns:
-                        data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
-                    else:
-                        for syn in syns:
-                            data_rows.append({
-                                "Word": word,
-                                "Word Type": POS_MAP.get(syn.pos(), "Noun"),
-                                "English": syn.definition(),
-                                "Tamil": "-"
-                            })
-                df_export = pd.DataFrame(data_rows)
-
-                if lang_choice == "English Only":
-                    df_view = df_export[["Word", "Word Type", "English"]]
-                elif lang_choice == "Tamil Only":
-                    df_view = df_export[["Word", "Word Type", "Tamil"]]
+    if st.session_state.get('search_triggered') and 'matches' in st.session_state:
+        matches = st.session_state['matches']
+        if matches:
+            data_rows = []
+            for word in matches:
+                syns = wordnet.synsets(word)
+                if not syns:
+                    data_rows.append({"Word": word, "Word Type":"-","English":"-","Tamil":"-"})
                 else:
-                    df_view = df_export
+                    for syn in syns:
+                        data_rows.append({"Word": word, "Word Type":POS_MAP.get(syn.pos(),"Noun"), "English": syn.definition(), "Tamil":"-"})
 
-                st.dataframe(df_view, height=450, use_container_width=True)
+            df_export = pd.DataFrame(data_rows)
 
-                towrite = BytesIO()
-                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
-                towrite.seek(0)
-                st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
-            else:
-                st.info("No results found.")
+            # Tamil translation handling
+            if lang_choice in ["Tamil Only","English + Tamil"]:
+                if "Tamil" not in df_export.columns or df_export["Tamil"].isnull().all():
+                    df_export["Tamil"] = translate_list_parallel(df_export["English"].tolist())
+
+            if lang_choice=="English Only": df_view = df_export[["Word","Word Type","English"]]
+            elif lang_choice=="Tamil Only": df_view = df_export[["Word","Word Type","Tamil"]]
+            else: df_view = df_export
+
+            st.dataframe(df_view, height=450, use_container_width=True)
+
+            towrite = BytesIO()
+            with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                df_export.to_excel(writer, index=False, sheet_name="Meanings")
+            towrite.seek(0)
+            st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
         else:
-            st.info("Please enter a suffix and click 'Search Words' to see definitions.")
+            st.info("No results found.")
     else:
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
-    
+
     st.markdown("</div>", unsafe_allow_html=True)
