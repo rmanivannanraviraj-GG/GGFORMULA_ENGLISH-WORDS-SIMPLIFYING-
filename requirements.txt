@@ -7,5 +7,6 @@ requests
 reportlab
 PyDictionary
 wiktionaryparser
+openpyxl
 
 
