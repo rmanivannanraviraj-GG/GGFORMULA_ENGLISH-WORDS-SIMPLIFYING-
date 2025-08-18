@@ -139,63 +139,81 @@ def make_highlight_html(word, suf):
         return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
 # Function to create the PDF content
-def create_pdf_content(words):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
-    
-    styles = getSampleStyleSheet()
-    
-    # Using default fonts to avoid file not found errors
-    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
-    
-    # We will create a style for the dotted words, but ReportLab doesn't support
-    # opacity directly on text, so we'll use a different font or color.
-    # For this example, we'll use a slightly different style to represent 'opacity'.
-    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
-    
-    story = []
-    
-    # Add Name and Date placeholder
-    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
-    story.append(Spacer(1, 0.5 * inch))
-    
-    story.append(Paragraph("<b> G.GEORGE - BRAIN-CHILD DICTIONARY</b>", styles['Title']))
-    story.append(Spacer(1, 0.5 * inch))
-    
-    words_per_page = 15
-    words_to_process = words[:words_per_page * 10]
-    
-    for i in range(0, len(words_to_process), words_per_page):
-        if i > 0:
-            story.append(PageBreak())
-        
-        page_words = words_to_process[i:i + words_per_page]
-        
-        # Create a table for each page with 4 columns and 5 rows
-        table_data = [['' for _ in range(4)] for _ in range(5)]
-        
-        for j, word in enumerate(page_words):
-            col_index = j % 4
-            row_index = j // 4
-            
-            cell_content = []
-            cell_content.append(Paragraph(f"<b>{word}</b>", penmanship_style))
-            for _ in range(4):
-                cell_content.append(Paragraph(word, normal_style))
-                
-            table_data[row_index][col_index] = cell_content
-        
-        table_style = [
-            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
-            ('BOX', (0,0), (-1,-1), 0.25, black),
-            ('TOPPADDING', (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ]
+# --- TRACER PDF generator (fixed settings per requirement) ---
+def create_tracer_pdf_buffer(words):
+    """
+    Fixed behaviour:
+      - 6 words per page (2 columns x 3 rows)
+      - 5 clone rows per word (light-grey, bold)
+      - full-width dashed underline
+      - dotted font if available, else Helvetica-Bold
+    Returns BytesIO buffer.
+    """
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    page_w, page_h = A4
 
-        story.append(Table(table_data, colWidths=[2*inch]*4, style=table_style))
-        story.append(Spacer(1, 0.5 * inch))
+    # fixed margins / sizes
+    left_margin = right_margin = 50
+    top_margin = 50
+    bottom_margin = 50
+    usable_w = page_w - left_margin - right_margin
+    col_gap = 40
+    col_w = (usable_w - col_gap)/2.0
+    x_cols = [left_margin, left_margin + col_w + col_gap]
+
+    font_main = "Dotted" if DO_TTF else "Helvetica-Bold"
+    font_clone = font_main
+    font_size_main = 28
+    font_size_clone = 28
+    clones_per_word = 5
+    line_height = 40
+    clone_gap = 10
+    block_height = font_size_main + (font_size_clone + clone_gap)*clones_per_word + 60
+
+    y_start_orig = page_h - top_margin
+    count_on_page = 0
+    y_start = y_start_orig
+
+    for idx, word in enumerate(words):
+        # if starting a new page (count_on_page == 0 and idx>0)
+        if count_on_page == 0 and idx > 0:
+            c.showPage()
+            y_start = y_start_orig
+
+        col = count_on_page % 2
+        if col == 0 and count_on_page > 0:
+            # moved from right col of previous row, go down
+            y_start -= block_height
+
+        x = x_cols[col]
+
+        # Model word
+        c.setFont(font_main, font_size_main)
+        c.setFillColor(colors.black)
+        c.drawCentredString(x + col_w/2, y_start, word)
+
+        # Clone rows (light grey) + full-width dashed underline
+        c.setFont(font_clone, font_size_clone)
+        c.setFillColor(colors.lightgrey)
+        y_clone = y_start - line_height
+        for _ in range(clones_per_word):
+            c.drawCentredString(x + col_w/2, y_clone, word)
+            underline_y = y_clone - 6
+            c.setDash(3,3)
+            c.setStrokeColor(colors.lightgrey)
+            # full-width underline across column for comfortable writing
+            c.line(x+4, underline_y, x + col_w - 4, underline_y)
+            c.setDash()
+            y_clone -= (font_size_clone + clone_gap)
+
+        count_on_page += 1
+        if count_on_page >= 6:
+            count_on_page = 0
+
+    c.save()
+    buf.seek(0)
+    return buf
 
     # Footer
     story.append(Spacer(1, 0.5 * inch))
@@ -311,6 +329,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
