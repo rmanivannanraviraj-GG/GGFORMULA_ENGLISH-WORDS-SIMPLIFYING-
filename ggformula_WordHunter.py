@@ -7,15 +7,12 @@ from nltk.corpus import wordnet
 import nltk
 from concurrent.futures import ThreadPoolExecutor
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
-from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib import colors
 
-# Ensure WordNet
+# NLTK resources
 try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
@@ -25,16 +22,14 @@ try:
 except LookupError:
     nltk.download('omw-1.4')
 
-# Page config
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
 
 POS_MAP = {'n': 'Noun','v': 'Verb','a': 'Adjective','s': 'Adjective (Satellite)','r': 'Adverb'}
-
 DO_TTF = False
 
-# CSS Styling
+# CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
@@ -46,7 +41,7 @@ body { font-family: 'Roboto', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-# Translation caching
+# Translation
 @st.cache_data(show_spinner=False)
 def translate_to_tamil(text: str):
     try:
@@ -58,7 +53,7 @@ def translate_list_parallel(texts, max_workers=10):
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         return list(executor.map(translate_to_tamil, texts))
 
-# Word list
+# Word lists
 @st.cache_data
 def get_all_words():
     wordnet_words = set(wordnet.all_lemma_names())
@@ -66,7 +61,6 @@ def get_all_words():
     custom_words = set()
     if custom_file.exists():
         custom_words = set(custom_file.read_text().splitlines())
-    # Dolch Sight words (example subset)
     dolch_words = set(["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","I","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","up","we","where","yellow","you"])
     return sorted(wordnet_words.union(custom_words).union(dolch_words), key=lambda x:(len(x), x.lower()))
 
@@ -92,12 +86,6 @@ def create_tracer_pdf_buffer(words):
     x_cols = [left_margin, left_margin + col_w + col_gap]
 
     font_main = "Helvetica-Bold"
-    if DO_TTF:
-        try:
-            pdfmetrics.registerFont(TTFont('Dotted', 'Dotted.ttf'))
-            font_main = 'Dotted'
-        except:
-            font_main = "Helvetica-Bold"
     font_clone = font_main
     font_size_main = 28
     font_size_clone = 28
@@ -142,7 +130,7 @@ def create_tracer_pdf_buffer(words):
     buf.seek(0)
     return buf
 
-# Main UI
+# UI
 st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
 with st.container():
@@ -150,7 +138,7 @@ with st.container():
     
     col1, col2 = st.columns(2, gap="large")
 
-    # Find Words Form
+    # Find Words
     with col1:
         st.subheader("🔎 Find Words")
         with st.form("find_words_form"):
@@ -168,7 +156,7 @@ with st.container():
                 else:
                     st.info("No results found.")
 
-    # PDF Tracer
+    # Word Tracer PDF
     with col2:
         st.subheader("📝 Word Tracer Generator")
         if st.session_state.get('search_triggered') and 'matches' in st.session_state:
