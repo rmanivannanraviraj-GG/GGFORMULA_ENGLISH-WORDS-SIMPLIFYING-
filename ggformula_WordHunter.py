@@ -1,32 +1,38 @@
+# app.py
+import os
+from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
 import streamlit as st
 import pandas as pd
-from io import BytesIO
-from pathlib import Path
-from deep_translator import GoogleTranslator
-from nltk.corpus import wordnet
+import requests
 import nltk
-from concurrent.futures import ThreadPoolExecutor
-import sys
-import os
+from nltk.corpus import wordnet
 
-# For PDF generation
+# Optional translator
+try:
+    from deep_translator import GoogleTranslator
+    HAS_TRANSLATOR = True
+except Exception:
+    HAS_TRANSLATOR = False
+
+# ReportLab
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib.colors import black
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.colors import black, darkgrey
 
-# Set default encoding to UTF-8
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
-
-# Download WordNet data (only once)
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+# Ensure WordNet
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+try:
+    nltk.data.find('corpora/omw-1.4')
+except LookupError:
+    nltk.download('omw-1.4')
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -309,6 +315,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
