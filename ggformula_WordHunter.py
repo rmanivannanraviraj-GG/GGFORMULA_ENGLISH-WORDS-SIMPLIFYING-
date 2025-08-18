@@ -1,311 +1,318 @@
-# app.py
-import os
-from io import BytesIO
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-
 import streamlit as st
 import pandas as pd
-import requests
-import nltk
+from io import BytesIO
+from pathlib import Path
+from deep_translator import GoogleTranslator
 from nltk.corpus import wordnet
+import nltk
+from concurrent.futures import ThreadPoolExecutor
+import sys
+import os
 
-# Optional translator
-try:
-    from deep_translator import GoogleTranslator
-    HAS_TRANSLATOR = True
-except Exception:
-    HAS_TRANSLATOR = False
-
-# ReportLab
+# For PDF generation
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import black
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.colors import black, darkgrey
 
-# Ensure WordNet
-try:
-    nltk.data.find('corpora/wordnet')
-except LookupError:
-    nltk.download('wordnet')
-try:
-    nltk.data.find('corpora/omw-1.4')
-except LookupError:
-    nltk.download('omw-1.4')
+# Set default encoding to UTF-8
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
-# UI config
-st.set_page_config(page_title="BRAIN-CHILD DICTIONARY", layout="wide")
+# Download WordNet data (only once)
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+
+# CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-.app-header {
-  background: linear-gradient(90deg, #6a11cb, #2575fc);
-  padding: 20px; border-radius: 12px; color: white; text-align: center;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.12); margin-bottom: 18px;
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+body {
+    font-family: 'Roboto', sans-serif;
 }
-.card { background:#fff; padding:16px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06); margin-bottom:12px; }
-.small { color:#666; font-size:0.9rem; }
-.code-note { background:#f7f7fb; padding:10px; border-radius:8px; font-size:0.9rem; }
+.app-header {
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    padding: 20px;
+    border-radius: 12px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    margin-bottom: 20px;
+}
+.main-container {
+    background-color: #f0f2f6;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.content-box {
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    max-height: 450px;
+    overflow-y: auto;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.st-emotion-cache-1r65d8v {
+    background: #f0f2f6;
+}
+.st-emotion-cache-12m3106 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+.st-emotion-cache-1f8p3j0 > div {
+    margin-top: 0;
+}
+.st-emotion-cache-1f8p3j0 > div > div > h3 {
+    margin-top: 0;
+}
+.st-emotion-cache-1f8p3j0 > div > div > p {
+    margin-top: 0;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='app-header'><h1 style='margin:0'>🌟 BRAIN-CHILD DICTIONARY 🌟</h1><div class='small'>Tracing Sheet Generator • Suffix Finder • Dictionary Explorer</div></div>", unsafe_allow_html=True)
+# Streamlit page config
+st.set_page_config(page_title="Word Suffix Finder", layout="wide")
+CACHE_DIR = Path("data")
+CACHE_DIR.mkdir(exist_ok=True)
 
-# Data dir
-DATA_DIR = Path("data"); DATA_DIR.mkdir(exist_ok=True)
+# POS mapping
+POS_MAP = {
+    'n': 'Noun',
+    'v': 'Verb',
+    'a': 'Adjective',
+    's': 'Adjective (Satellite)',
+    'r': 'Adverb'
+}
 
-POS_MAP = {'n':'Noun','v':'Verb','a':'Adjective','s':'Adjective (Satellite)','r':'Adverb'}
-
-# Cached WordNet words
+# Cached translation
 @st.cache_data(show_spinner=False)
-def get_all_words():
-    return sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+def translate_to_tamil(text: str):
+    try:
+        return GoogleTranslator(source='auto', target='ta').translate(text)
+    except:
+        return ""
 
+# Parallel translation wrapper
+def translate_list_parallel(texts, max_workers=10):
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(translate_to_tamil, texts))
+    return results
+
+# Find matching words
 def find_matches(words, suffix, before_letters):
     suf = suffix.lower()
-    return sorted([w for w in words if w.lower().endswith(suf) and (before_letters == 0 or len(w) - len(suf) == before_letters)], key=len)
+    matched = []
+    for w in words:
+        if w.lower().endswith(suf):
+            if before_letters == 0 or len(w) - len(suf) == before_letters:
+                matched.append(w)
+    matched.sort(key=len)
+    return matched
 
+# Find synonyms for a given word
 def find_synonyms(word):
-    s = set()
+    synonyms = set()
     for syn in wordnet.synsets(word):
-        for lem in syn.lemmas():
-            s.add(lem.name().replace('_',' '))
-    return list(s)
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name().replace('_', ' '))
+    return list(synonyms)
 
-# Translate helpers
-def translate_to_tamil(text):
-    if HAS_TRANSLATOR:
-        try:
-            return GoogleTranslator(source='auto', target='ta').translate(text)
-        except Exception:
-            pass
-    # fallback to google translate public endpoint
-    try:
-        res = requests.get("https://translate.googleapis.com/translate_a/single", params={"client":"gtx","sl":"en","tl":"ta","dt":"t","q": text}, timeout=8)
-        if res.status_code == 200:
-            return res.json()[0][0][0]
-    except Exception:
-        pass
-    return "(translation unavailable)"
+# Highlight suffix in word with audio icon
+def make_highlight_html(word, suf):
+    if suf and word.lower().endswith(suf.lower()):
+        p = word[:-len(suf)]
+        s = word[-len(suf):]
+        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
+    else:
+        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
 
-def translate_list_parallel(texts, max_workers=min(5, os.cpu_count() or 2)):
-    if not texts:
-        return []
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        return list(ex.map(translate_to_tamil, texts))
+# Function to create the PDF content
+def create_pdf_content(words):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    
+    styles = getSampleStyleSheet()
+    
+    # Using default fonts to avoid file not found errors
+    penmanship_style = ParagraphStyle('Penmanship', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=black, alignment=TA_CENTER)
+    
+    # We will create a style for the dotted words, but ReportLab doesn't support
+    # opacity directly on text, so we'll use a different font or color.
+    # For this example, we'll use a slightly different style to represent 'opacity'.
+    dotted_style = ParagraphStyle('Dotted', parent=styles['Normal'], fontName='Courier', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=24, leading=28, textColor=darkgrey, alignment=TA_CENTER)
+    
+    story = []
+    
+    # Add Name and Date placeholder
+    story.append(Paragraph("<b>Name:</b> ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Date:</b> ____________________", styles['Normal']))
+    story.append(Spacer(1, 0.5 * inch))
+    
+    story.append(Paragraph("<b> G.GEORGE - BRAIN-CHILD DICTIONARY</b>", styles['Title']))
+    story.append(Spacer(1, 0.5 * inch))
+    
+    words_per_page = 15
+    words_to_process = words[:words_per_page * 10]
+    
+    for i in range(0, len(words_to_process), words_per_page):
+        if i > 0:
+            story.append(PageBreak())
+        
+        page_words = words_to_process[i:i + words_per_page]
+        
+        # Create a table for each page with 4 columns and 5 rows
+        table_data = [['' for _ in range(4)] for _ in range(5)]
+        
+        for j, word in enumerate(page_words):
+            col_index = j % 4
+            row_index = j // 4
+            
+            cell_content = []
+            cell_content.append(Paragraph(f"<b>{word}</b>", penmanship_style))
+            for _ in range(4):
+                cell_content.append(Paragraph(word, normal_style))
+                
+            table_data[row_index][col_index] = cell_content
+        
+        table_style = [
+            ('INNERGRID', (0,0), (-1,-1), 0.25, black),
+            ('BOX', (0,0), (-1,-1), 0.25, black),
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ]
 
-# dictionaryapi.dev fallback
-def dictapi_defs(word, timeout=8):
-    try:
-        url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
-        r = requests.get(url, timeout=timeout)
-        if r.status_code != 200:
-            return []
-        data = r.json()
-        defs = []
-        for meaning in data[0].get("meanings", []):
-            pos = meaning.get("partOfSpeech", "")
-            for d in meaning.get("definitions", []):
-                defs.append((pos, d.get("definition","")))
-        # dedupe & cap
-        seen=set(); out=[]
-        for pos, d in defs:
-            key=(pos, d.strip())
-            if d and key not in seen:
-                seen.add(key); out.append((pos, d))
-            if len(out)>=4: break
-        return out
-    except Exception:
-        return []
+        story.append(Table(table_data, colWidths=[2*inch]*4, style=table_style))
+        story.append(Spacer(1, 0.5 * inch))
 
-# Optional dotted font support (if KGPrimaryDots.ttf present)
-DO_TTF = os.path.exists("KGPrimaryDots.ttf")
-if DO_TTF:
-    try:
-        pdfmetrics.registerFont(TTFont("Dotted", "KGPrimaryDots.ttf"))
-    except Exception:
-        DO_TTF = False
+    # Footer
+    story.append(Spacer(1, 0.5 * inch))
+    story.append(Paragraph("Created with G.GEORGE - BRAIN-CHILD DICTIONARY", styles['Normal']))
 
-# --- TRACER PDF generator (fixed settings per requirement) ---
-def create_tracer_pdf_buffer(words):
-    """
-    Fixed behaviour:
-      - 6 words per page (2 columns x 3 rows)
-      - 5 clone rows per word (light-grey, bold)
-      - full-width dashed underline
-      - dotted font if available, else Helvetica-Bold
-    Returns BytesIO buffer.
-    """
-    buf = BytesIO()
-    c = canvas.Canvas(buf, pagesize=A4)
-    page_w, page_h = A4
+    doc.build(story)
+    return buffer.getvalue()
 
-    # fixed margins / sizes
-    left_margin = right_margin = 50
-    top_margin = 50
-    bottom_margin = 50
-    usable_w = page_w - left_margin - right_margin
-    col_gap = 40
-    col_w = (usable_w - col_gap)/2.0
-    x_cols = [left_margin, left_margin + col_w + col_gap]
 
-    font_main = "Dotted" if DO_TTF else "Helvetica-Bold"
-    font_clone = font_main
-    font_size_main = 28
-    font_size_clone = 28
-    clones_per_word = 5
-    line_height = 40
-    clone_gap = 10
-    block_height = font_size_main + (font_size_clone + clone_gap)*clones_per_word + 60
+# --- Main Streamlit App Layout ---
+st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
-    y_start_orig = page_h - top_margin
-    count_on_page = 0
-    y_start = y_start_orig
-
-    for idx, word in enumerate(words):
-        # if starting a new page (count_on_page == 0 and idx>0)
-        if count_on_page == 0 and idx > 0:
-            c.showPage()
-            y_start = y_start_orig
-
-        col = count_on_page % 2
-        if col == 0 and count_on_page > 0:
-            # moved from right col of previous row, go down
-            y_start -= block_height
-
-        x = x_cols[col]
-
-        # Model word
-        c.setFont(font_main, font_size_main)
-        c.setFillColor(colors.black)
-        c.drawCentredString(x + col_w/2, y_start, word)
-
-        # Clone rows (light grey) + full-width dashed underline
-        c.setFont(font_clone, font_size_clone)
-        c.setFillColor(colors.lightgrey)
-        y_clone = y_start - line_height
-        for _ in range(clones_per_word):
-            c.drawCentredString(x + col_w/2, y_clone, word)
-            underline_y = y_clone - 6
-            c.setDash(3,3)
-            c.setStrokeColor(colors.lightgrey)
-            # full-width underline across column for comfortable writing
-            c.line(x+4, underline_y, x + col_w - 4, underline_y)
-            c.setDash()
-            y_clone -= (font_size_clone + clone_gap)
-
-        count_on_page += 1
-        if count_on_page >= 6:
-            count_on_page = 0
-
-    c.save()
-    buf.seek(0)
-    return buf
-
-# ------------------ UI: Suffix Finder (left) & Tracer Generator (right) ------------------
 with st.container():
-    left_col, right_col = st.columns([1,1])
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+    
+    col_input1, col_input2 = st.columns(2)
+    with col_input1:
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
+    with col_input2:
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
 
-    # LEFT: Suffix Finder
-    with left_col:
-        st.markdown("<div class='card'><h3>🔎 Suffix Finder</h3>", unsafe_allow_html=True)
-        suffix = st.text_input("Suffix (e.g., 'ing' or 'ight')", value="ing", key="suffix_input")
-        before_letters = st.number_input("Letters before suffix (0 = any)", min_value=0, step=1, value=0, key="before_letters")
-        run_search = st.button("Find Words", key="find_words_btn")
-        matches = []
-        if run_search:
-            all_words = get_all_words()
-            matches = find_matches(all_words, suffix, before_letters)
-            st.success(f"Found {len(matches)} words that end with '{suffix}'.")
+    # Layout for the main content sections
+    col1, col2 = st.columns(2, gap="large")
+
+    with col1:
+        st.subheader("🔎 Find Words")
+        with st.form("find_words_form"):
+            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+            search_button = st.form_submit_button(label='Search Words')
+
+        if search_button:
+            all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+            matches = find_matches(all_words, suffix_input, before_letters)
+            st.session_state['matches'] = matches
+            st.session_state['search_triggered'] = True
+            
+            st.markdown(f"**Total Words Found:** {len(matches)}")
+            
             if matches:
-                # Save matches to session for use in other actions
-                st.session_state['matches'] = matches
-                # show a first page of matches (cap)
-                st.dataframe(pd.DataFrame(matches[:200], columns=["Word"]), height=min(400, max(200, len(matches[:200])*28)), use_container_width=True)
+                matches_df = pd.DataFrame(matches, columns=["Word"])
+                st.dataframe(matches_df, height=450, use_container_width=True)
             else:
-                st.info("No matches. Try another suffix or set 'letters before' = 0.")
-        st.markdown("</div>", unsafe_allow_html=True)
+                st.info("No results found.")
 
-    # RIGHT: Tracer Generator
-    with right_col:
-        st.markdown("<div class='card'><h3>✏️ Tracer PDF Generator (6 words/page)</h3>", unsafe_allow_html=True)
-        st.markdown("<div class='small'>Fixed: 5 clones / word • full-width dashed underline • 6 words/page</div>", unsafe_allow_html=True)
-
-        # Use matches if available, else sample defaults
-        words_source = st.session_state.get('matches', None)
-        if words_source:
-            st.markdown(f"**Using {len(words_source)} match(es) from suffix search.**")
-            use_count = st.number_input("How many matches to include (max 48)", min_value=1, max_value=min(200, len(words_source)), value=min(24, len(words_source)), key="use_count")
-            selected_words = words_source[:use_count]
+    with col2:
+        st.subheader("📝 Word Tracer Generator")
+        
+        # Check if matches are available to pre-fill the text area
+        if st.session_state.get('search_triggered') and 'matches' in st.session_state:
+            matches_to_use = "\n".join(st.session_state['matches'])
+            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
         else:
-            # default example set (no manual input box)
-            default_words = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
-            st.markdown("No suffix search run — using default sample words.")
-            selected_words = default_words
+            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
+        
+        tracer_button = st.button(label='Generate PDF')
+            
+        if tracer_button:
+            words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
+            if words_for_tracer:
+                pdf_data = create_pdf_content(words_for_tracer)
+                if pdf_data:
+                    st.download_button(
+                        label="Download Practice Sheet as PDF",
+                        data=pdf_data,
+                        file_name="word_tracer_sheet.pdf",
+                        mime="application/pdf"
+                    )
 
-        if st.button("Generate Tracing PDF (from selected list)", key="gen_pdf_btn"):
-            if not selected_words:
-                st.warning("No words available to generate PDF.")
+    # Word Definitions section is now below
+    st.markdown("---")
+    st.subheader("📘 Word Definitions")
+
+    if st.session_state.get('search_triggered'):
+        if 'matches' in st.session_state:
+            matches = st.session_state['matches']
+            if matches:
+                data_rows = []
+                for word in matches:
+                    syns = wordnet.synsets(word)
+                    if not syns:
+                        data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
+                    else:
+                        for syn in syns:
+                            eng = syn.definition()
+                            data_rows.append({
+                                "Word": word,
+                                "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                                "English": eng,
+                                "Tamil": "-"
+                            })
+
+                df_export = pd.DataFrame(data_rows)
+
+                if st.session_state.lang_choice_main == "English Only":
+                    df_view = df_export[["Word", "Word Type", "English"]]
+                elif st.session_state.lang_choice_main == "Tamil Only":
+                    df_view = df_export[["Word", "Word Type", "Tamil"]]
+                else:
+                    df_view = df_export
+
+                st.dataframe(df_view, height=450, use_container_width=True)
+
+                towrite = BytesIO()
+                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
+                towrite.seek(0)
+                st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
             else:
-                pdf_buf = create_tracer_pdf_buffer(selected_words)
-                st.download_button("📥 Download Tracing PDF", data=pdf_buf, file_name="tracing_practice.pdf", mime="application/pdf", key="dl_pdf")
-                st.success("PDF generated — download ready.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ------------------ Dictionary Explorer ------------------
-st.markdown("<div class='card'><h3>📘 Dictionary Explorer</h3>", unsafe_allow_html=True)
-lang_choice = st.selectbox("Show meaning in:", ["English Only", "Tamil Only", "English + Tamil"], index=0, key="lang_choice")
-
-build_label = "Build Meanings Table from suffix results" if 'matches' in st.session_state and st.session_state['matches'] else "Build Meanings Table (use default sample)"
-if st.button(build_label, key="build_meanings"):
-    if 'matches' in st.session_state and st.session_state['matches']:
-        words_for_defs = list(dict.fromkeys(st.session_state['matches']))
-    else:
-        words_for_defs = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
-
-    rows=[]
-    for w in words_for_defs:
-        synsets = wordnet.synsets(w)
-        if synsets:
-            for syn in synsets[:3]:
-                rows.append({"Word": w, "Word Type": POS_MAP.get(syn.pos(), "Noun"), "English": syn.definition(), "Tamil":"", "Synonyms": ", ".join(find_synonyms(w)[:10]) or "-"})
+                st.info("No results found.")
         else:
-            defs = dictapi_defs(w)
-            if defs:
-                for pos, d in defs:
-                    rows.append({"Word": w, "Word Type": pos or "-", "English": d, "Tamil":"", "Synonyms": ", ".join(find_synonyms(w)[:10]) or "-"})
-            else:
-                rows.append({"Word": w, "Word Type":"-","English":"-","Tamil":"-","Synonyms":"-"})
-
-    df = pd.DataFrame(rows)
-
-    # Tamil translations (parallel)
-    if lang_choice != "English Only" and not df.empty:
-        eng_list = df["English"].fillna("-").tolist()
-        with st.spinner("Fetching Tamil translations..."):
-            ta_list = translate_list_parallel(eng_list)
-        df["Tamil"] = ta_list
-
-    # Display chosen columns
-    if lang_choice == "English Only":
-        df_view = df[["Word","Word Type","English","Synonyms"]]
-    elif lang_choice == "Tamil Only":
-        df_view = df[["Word","Word Type","Tamil","Synonyms"]]
+            st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     else:
-        df_view = df[["Word","Word Type","English","Tamil","Synonyms"]]
+        st.info("Please enter a suffix and click 'Search Words' to see definitions.")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.dataframe(df_view, height=min(600, max(300, len(df_view)*28)), use_container_width=True)
 
-    # Excel export
-    xbuf = BytesIO()
-    with pd.ExcelWriter(xbuf, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Meanings")
-    xbuf.seek(0)
-    st.download_button("📥 Download Meanings (Excel)", xbuf, file_name="meanings.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-st.markdown("</div>", unsafe_allow_html=True)
 
-st.caption("© BRAIN-CHILD — Tracing Generator + Dictionary Explorer • Fixed 6 words/page layout")
+
+
+
