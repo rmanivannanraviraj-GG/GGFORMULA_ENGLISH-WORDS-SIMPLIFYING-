@@ -248,112 +248,112 @@ def create_tracer_pdf_buffer(words):
 
 
 # ------------------ UI: Suffix Finder (left) & Tracer Generator (right) ------------------
-with st.container():
-    left_col, right_col = st.columns([1,1])
-
-    # LEFT: Suffix Finder
-    with left_col:
-        st.markdown("<div class='card'><h3>🔎 Suffix Finder</h3>", unsafe_allow_html=True)
-        suffix = st.text_input("Suffix (e.g., 'ing' or 'ight')", value="ing", key="suffix_input")
-        before_letters = st.number_input("Letters before suffix (0 = any)", min_value=0, step=1, value=0, key="before_letters")
-        run_search = st.button("Find Words", key="find_words_btn")
-        matches = []
-        if run_search:
-            all_words = get_all_words()
-            matches = find_matches(all_words, suffix, before_letters)
-            st.success(f"Found {len(matches)} words that end with '{suffix}'.")
-            if matches:
-                # Save matches to session for use in other actions
-                st.session_state['matches'] = matches
-                # show a first page of matches (cap)
-                st.dataframe(pd.DataFrame(matches[:200], columns=["Word"]), height=min(400, max(200, len(matches[:200])*28)), use_container_width=True)
-            else:
-                st.info("No matches. Try another suffix or set 'letters before' = 0.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # RIGHT: Tracer Generator
-    with right_col:
-        st.markdown("<div class='card'><h3>✏️ Tracer PDF Generator (6 words/page)</h3>", unsafe_allow_html=True)
-        st.markdown("<div class='small'>Fixed: 5 clones / word • full-width dashed underline • 6 words/page</div>", unsafe_allow_html=True)
-
-        # Use matches if available, else sample defaults
-        words_source = st.session_state.get('matches', None)
-        if words_source:
-            st.markdown(f"**Using {len(words_source)} match(es) from suffix search.**")
-            use_count = st.number_input("How many matches to include (max 48)", min_value=1, max_value=min(200, len(words_source)), value=min(24, len(words_source)), key="use_count")
-            selected_words = words_source[:use_count]
-        else:
-            # default example set (no manual input box)
-            default_words = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
-            st.markdown("No suffix search run — using default sample words.")
-            selected_words = default_words
-
-        if st.button("Generate Tracing PDF (from selected list)", key="gen_pdf_btn"):
-            if not selected_words:
-                st.warning("No words available to generate PDF.")
-            else:
-                pdf_buf = create_tracer_pdf_buffer(selected_words)
-                st.download_button("📥 Download Tracing PDF", data=pdf_buf, file_name="tracing_practice.pdf", mime="application/pdf", key="dl_pdf")
-                st.success("PDF generated — download ready.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
 # --- Main Streamlit App Layout ---
-# ------------------ Dictionary Explorer ------------------
-st.markdown("<div class='card'><h3>📘 Dictionary Explorer</h3>", unsafe_allow_html=True)
-lang_choice = st.selectbox("Show meaning in:", ["English Only", "Tamil Only", "English + Tamil"], index=0, key="lang_choice")
+st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
 
-build_label = "Build Meanings Table from suffix results" if 'matches' in st.session_state and st.session_state['matches'] else "Build Meanings Table (use default sample)"
-if st.button(build_label, key="build_meanings"):
-    if 'matches' in st.session_state and st.session_state['matches']:
-        words_for_defs = list(dict.fromkeys(st.session_state['matches']))
-    else:
-        words_for_defs = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
+with st.container():
+    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+    
+    col_input1, col_input2 = st.columns(2)
+    with col_input1:
+        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
+    with col_input2:
+        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
 
-    rows=[]
-    for w in words_for_defs:
-        synsets = wordnet.synsets(w)
-        if synsets:
-            for syn in synsets[:3]:
-                rows.append({"Word": w, "Word Type": POS_MAP.get(syn.pos(), "Noun"), "English": syn.definition(), "Tamil":"", "Synonyms": ", ".join(find_synonyms(w)[:10]) or "-"})
-        else:
-            defs = dictapi_defs(w)
-            if defs:
-                for pos, d in defs:
-                    rows.append({"Word": w, "Word Type": pos or "-", "English": d, "Tamil":"", "Synonyms": ", ".join(find_synonyms(w)[:10]) or "-"})
+    # Layout for the main content sections
+    col1, col2 = st.columns(2, gap="large")
+
+    with col1:
+        st.subheader("🔎 Find Words")
+        with st.form("find_words_form"):
+            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+            search_button = st.form_submit_button(label='Search Words')
+
+        if search_button:
+            all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+            matches = find_matches(all_words, suffix_input, before_letters)
+            st.session_state['matches'] = matches
+            st.session_state['search_triggered'] = True
+            
+            st.markdown(f"**Total Words Found:** {len(matches)}")
+            
+            if matches:
+                matches_df = pd.DataFrame(matches, columns=["Word"])
+                st.dataframe(matches_df, height=450, use_container_width=True)
             else:
-                rows.append({"Word": w, "Word Type":"-","English":"-","Tamil":"-","Synonyms":"-"})
+                st.info("No results found.")
 
-    df = pd.DataFrame(rows)
+    with col2:
+        st.subheader("📝 Word Tracer Generator")
+        
+        # Check if matches are available to pre-fill the text area
+        if st.session_state.get('search_triggered') and 'matches' in st.session_state:
+            matches_to_use = "\n".join(st.session_state['matches'])
+            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
+        else:
+            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
+        
+        tracer_button = st.button(label='Generate PDF')
+            
+        if tracer_button:
+            words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
+            if words_for_tracer:
+                pdf_data = create_pdf_content(words_for_tracer)
+                if pdf_data:
+                    st.download_button(
+                        label="Download Practice Sheet as PDF",
+                        data=pdf_data,
+                        file_name="word_tracer_sheet.pdf",
+                        mime="application/pdf"
+                    )
 
-    # Tamil translations (parallel)
-    if lang_choice != "English Only" and not df.empty:
-        eng_list = df["English"].fillna("-").tolist()
-        with st.spinner("Fetching Tamil translations..."):
-            ta_list = translate_list_parallel(eng_list)
-        df["Tamil"] = ta_list
+    # Word Definitions section is now below
+    st.markdown("---")
+    st.subheader("📘 Word Definitions")
 
-    # Display chosen columns
-    if lang_choice == "English Only":
-        df_view = df[["Word","Word Type","English","Synonyms"]]
-    elif lang_choice == "Tamil Only":
-        df_view = df[["Word","Word Type","Tamil","Synonyms"]]
+    if st.session_state.get('search_triggered'):
+        if 'matches' in st.session_state:
+            matches = st.session_state['matches']
+            if matches:
+                data_rows = []
+                for word in matches:
+                    syns = wordnet.synsets(word)
+                    if not syns:
+                        data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
+                    else:
+                        for syn in syns:
+                            eng = syn.definition()
+                            data_rows.append({
+                                "Word": word,
+                                "Word Type": POS_MAP.get(syn.pos(), "Noun"),
+                                "English": eng,
+                                "Tamil": "-"
+                            })
+
+                df_export = pd.DataFrame(data_rows)
+
+                if st.session_state.lang_choice_main == "English Only":
+                    df_view = df_export[["Word", "Word Type", "English"]]
+                elif st.session_state.lang_choice_main == "Tamil Only":
+                    df_view = df_export[["Word", "Word Type", "Tamil"]]
+                else:
+                    df_view = df_export
+
+                st.dataframe(df_view, height=450, use_container_width=True)
+
+                towrite = BytesIO()
+                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
+                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
+                towrite.seek(0)
+                st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
+            else:
+                st.info("No results found.")
+        else:
+            st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     else:
-        df_view = df[["Word","Word Type","English","Tamil","Synonyms"]]
-
-    st.dataframe(df_view, height=min(600, max(300, len(df_view)*28)), use_container_width=True)
-
-    # Excel export
-    xbuf = BytesIO()
-    with pd.ExcelWriter(xbuf, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="Meanings")
-    xbuf.seek(0)
-    st.download_button("📥 Download Meanings (Excel)", xbuf, file_name="meanings.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-st.caption("© BRAIN-CHILD — Tracing Generator + Dictionary Explorer • Fixed 6 words/page layout")
-
-
+        st.info("Please enter a suffix and click 'Search Words' to see definitions.")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 
