@@ -16,6 +16,7 @@ try: nltk.data.find('corpora/wordnet')
 except LookupError: nltk.download('wordnet')
 try: nltk.data.find('corpora/omw-1.4')
 except LookupError: nltk.download('omw-1.4')
+
 # optional extra corpus: nltk.corpus.words
 HAVE_NLTK_WORDS = True
 try:
@@ -30,7 +31,7 @@ st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 CACHE_DIR = Path("data"); CACHE_DIR.mkdir(exist_ok=True)
 POS_MAP = {'n':'Noun','v':'Verb','a':'Adjective','s':'Adjective (Satellite)','r':'Adverb'}
 
-# --- CSS styling (same UI kept) ---
+# --- CSS styling (keep your UI) ---
 st.markdown("""
 <style>
 body { font-family: 'Roboto', sans-serif; }
@@ -43,6 +44,7 @@ body { font-family: 'Roboto', sans-serif; }
 # --- Translation ---
 @st.cache_data(show_spinner=False)
 def translate_to_tamil(text:str):
+    if not text: return "-"
     try:
         out = GoogleTranslator(source='auto', target='ta').translate(text)
         return out if out else "-"
@@ -51,6 +53,7 @@ def translate_to_tamil(text:str):
 
 def google_public_translate(text: str) -> str:
     """Fallback: public Google translate endpoint (unofficial)."""
+    if not text: return "-"
     try:
         params = {"client":"gtx","sl":"auto","tl":"ta","dt":"t","q":text}
         r = requests.get("https://translate.googleapis.com/translate_a/single", params=params, timeout=8)
@@ -61,7 +64,7 @@ def google_public_translate(text: str) -> str:
         return "-"
 
 def translate_list_parallel(texts, max_workers=12):
-    """deep_translator first; fallback to public endpoint if needed (per item)."""
+    """deep_translator first; fallback (per-item) to public endpoint if needed."""
     results = [None]*len(texts)
     # First pass: deep_translator
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -70,7 +73,7 @@ def translate_list_parallel(texts, max_workers=12):
             i = futs[f]
             try: results[i] = f.result()
             except Exception: results[i] = "-"
-    # Fallback pass where needed
+    # Fallback for missing
     need = [i for i, t in enumerate(results) if (not t) or t == "-"]
     if need:
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -97,18 +100,23 @@ def get_all_words():
     large_words = set()
     if large_file.exists(): large_words = set(large_file.read_text(encoding="utf-8", errors="ignore").splitlines())
     merged = wordnet_words.union(extra_words).union(dolch_words).union(custom_words).union(large_words)
-    # basic cleanup: words only (allow letters, digits, apostrophe, hyphen, underscore)
-    cleaned = {w for w in (str(x).strip() for x in merged) if w and w.isascii()}
+    # keep ascii tokens only to avoid weird symbols
+    cleaned = {str(x).strip() for x in merged if str(x).strip() and str(x).strip().isascii()}
     return sorted(cleaned, key=lambda x:(len(x), x.lower()))
 
-def find_matches(words, suffix):
-    suf = suffix.lower().strip()
+def find_matches(words, suffix, before_letters):
+    suf = (suffix or "").lower().strip()
     if not suf: return []
-    matched = [w for w in words if w.lower().endswith(suf)]
+    matched = []
+    for w in words:
+        wl = w.lower()
+        if wl.endswith(suf):
+            if before_letters == 0 or len(wl) - len(suf) == before_letters:
+                matched.append(w)
     matched.sort(key=len)
     return matched
 
-# --- Online Dictionaries: DictionaryAPI.dev + Wiktionary (fallback) ---
+# --- Dictionaries: DictionaryAPI.dev + Wiktionary parsing + WordNet ---
 @st.cache_data(show_spinner=False)
 def dictionaryapi_lookup(word: str):
     """Free, no key: https://api.dictionaryapi.dev/api/v2/entries/en/<word>"""
@@ -130,7 +138,7 @@ def dictionaryapi_lookup(word: str):
 @st.cache_data(show_spinner=False)
 def wiktionary_lookup(word: str):
     """
-    Simple Wiktionary parse via MediaWiki extracts API (plaintext). We grab lines beginning with '# ' as definitions.
+    Wiktionary parsing via MediaWiki API (wikitext). We collect '# ' lines as definitions (simple heuristic).
     """
     try:
         params = {"action":"parse","page":word,"prop":"wikitext","format":"json"}
@@ -142,25 +150,20 @@ def wiktionary_lookup(word: str):
         defs = []
         for line in wt.splitlines():
             line = line.strip()
-            # capture lines like: # definition text
             if line.startswith("# ") and not line.startswith("##"):
                 txt = line.lstrip("# ").strip()
-                # remove wiki markup crudely
-                txt = txt.replace("''", "").replace("'''","")
-                txt = txt.replace("[[","").replace("]]","")
+                txt = txt.replace("'''", "").replace("''", "")
+                txt = txt.replace("[[", "").replace("]]", "")
                 if txt: defs.append(txt)
         defs = [d for d in defs if d]
         return {"definitions": list(dict.fromkeys(defs)), "synonyms": [], "source":"Wiktionary"}
     except Exception:
         return {}
 
-# --- WordNet info (definitions + synonyms + POS) ---
 @st.cache_data(show_spinner=False)
 def wordnet_info(word: str):
     synsets = wordnet.synsets(word)
-    out_defs = []
-    out_syns = set()
-    out_pos = set()
+    out_defs, out_syns, out_pos = [], set(), set()
     for s in synsets:
         out_defs.append(s.definition())
         out_pos.add(s.pos())
@@ -170,23 +173,27 @@ def wordnet_info(word: str):
     return {"definitions": list(dict.fromkeys(out_defs)), "synonyms": sorted(out_syns), "pos": pos_list, "source":"WordNet"}
 
 def aggregate_meanings(word: str):
-    """Combine WordNet + DictionaryAPI.dev + Wiktionary."""
+    """Combine WordNet + DictionaryAPI.dev + Wiktionary (parallel)."""
     agg_defs, agg_syns, sources = [], set(), []
     wn = wordnet_info(word)
     if wn["definitions"]:
         agg_defs.extend(wn["definitions"])
         agg_syns |= set(wn["synonyms"])
         sources.append("WordNet")
-    # Online in parallel
-    lookups = []
+
+    tasks = []
     with ThreadPoolExecutor(max_workers=2) as ex:
-        lookups.append(ex.submit(dictionaryapi_lookup, word))
-        lookups.append(ex.submit(wiktionary_lookup, word))
-        for fut in as_completed(lookups):
+        tasks.append(ex.submit(dictionaryapi_lookup, word))
+        tasks.append(ex.submit(wiktionary_lookup, word))
+        for fut in as_completed(tasks):
             info = fut.result() or {}
-            if info.get("definitions"): agg_defs.extend(info["definitions"])
-            for s in info.get("synonyms", []): agg_syns.add(s)
-            if info.get("source"): sources.append(info["source"])
+            if info.get("definitions"):
+                agg_defs.extend(info["definitions"])
+            for s in info.get("synonyms", []):
+                agg_syns.add(s)
+            if info.get("source"):
+                sources.append(info["source"])
+
     agg_defs = list(dict.fromkeys([d.strip() for d in agg_defs if d and d.strip()]))
     return {"definitions": agg_defs, "synonyms": sorted(agg_syns), "pos": wn["pos"], "sources": sources}
 
@@ -230,15 +237,16 @@ with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
     col1,col2 = st.columns(2,gap="large")
 
-    # --- Find Words (Suffix only; others removed) ---
+    # --- Find Words (Suffix + Before letters) ---
     with col1:
         st.subheader("🔎 Find Words")
         with st.form("find_words_form"):
             suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight")
+            before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0)
             submit_button = st.form_submit_button("Apply")
             if submit_button:
                 all_words = get_all_words()
-                matches = find_matches(all_words, suffix_input)
+                matches = find_matches(all_words, suffix_input, before_letters)
                 st.session_state['matches']=matches; st.session_state['search_triggered']=True
                 st.markdown(f"**Total Words Found:** {len(matches)}")
                 if matches: st.dataframe(pd.DataFrame(matches,columns=["Word"]),height=450,use_container_width=True)
@@ -259,13 +267,15 @@ with st.container():
 
     st.markdown("---")
     st.subheader("📘 Word Definitions")
+    # NOTE: This dropdown now controls ONLY the output language of meanings (not the word sources)
     lang_choice = st.selectbox("Show Meaning in:", ["English Only","Tamil Only","English + Tamil"])
+
     if st.session_state.get('search_triggered') and 'matches' in st.session_state:
         matches = st.session_state['matches']
         if matches:
-            # Aggregate meanings via WordNet + DictionaryAPI.dev + Wiktionary
             data_rows=[]
-            def build_row(word):
+
+            def build_rows(word):
                 info = aggregate_meanings(word)
                 pos = ", ".join(info.get("pos") or []) if info.get("pos") else "-"
                 defs = info.get("definitions") or []
@@ -278,30 +288,33 @@ with st.container():
                 return rows
 
             with ThreadPoolExecutor(max_workers=12) as ex:
-                futs = [ex.submit(build_row, w) for w in matches]
+                futs = [ex.submit(build_rows, w) for w in matches]
                 for f in as_completed(futs):
                     data_rows.extend(f.result())
 
             df_export=pd.DataFrame(data_rows)
 
-            # Tamil translations on-demand
+            # === Output language handling (THIS ONLY CHANGES THE VIEW / TRANSLATION, NOT WORD SOURCE) ===
             if lang_choice in ["Tamil Only","English + Tamil"]:
-                if "Tamil" not in df_export.columns or df_export["Tamil"].isnull().all():
-                    eng_defs = df_export["English"].fillna("").astype(str).tolist()
-                    df_export["Tamil"]=translate_list_parallel(eng_defs)
+                eng_defs = df_export["English"].fillna("").astype(str).tolist()
+                df_export["Tamil"] = translate_list_parallel(eng_defs)
 
-            if lang_choice=="English Only": df_view=df_export[["Word","Word Type","English","Synonyms","Sources"]]
-            elif lang_choice=="Tamil Only": df_view=df_export[["Word","Word Type","Tamil","Synonyms","Sources"]]
-            else: df_view=df_export[["Word","Word Type","English","Tamil","Synonyms","Sources"]]
+            # Build view by selection (Word column ALWAYS kept)
+            if lang_choice=="English Only":
+                df_view=df_export[["Word","Word Type","English","Synonyms","Sources"]]
+            elif lang_choice=="Tamil Only":
+                # keep Word + Tamil; hide English column only in the view
+                df_view=df_export[["Word","Word Type","Tamil","Synonyms","Sources"]]
+            else:
+                df_view=df_export[["Word","Word Type","English","Tamil","Synonyms","Sources"]]
 
             # Clean empties
-            for col in ["English","Tamil","Synonyms","Sources","Word Type"]:
-                if col in df_view.columns:
-                    df_view[col]=df_view[col].replace("", "-").fillna("-")
+            for col in df_view.columns:
+                df_view[col]=df_view[col].replace("", "-").fillna("-")
 
             st.dataframe(df_view,height=450,use_container_width=True)
 
-            # Download Excel (full data)
+            # Download Excel (full data with both languages if translated)
             towrite=BytesIO()
             with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
                 df_export.to_excel(writer,index=False,sheet_name="Meanings")
