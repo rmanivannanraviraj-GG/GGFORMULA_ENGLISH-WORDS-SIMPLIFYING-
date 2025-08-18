@@ -6,4 +6,6 @@ xlsxwriter
 requests
 reportlab
 PyDictionary
+wiktionaryparser
+
 
