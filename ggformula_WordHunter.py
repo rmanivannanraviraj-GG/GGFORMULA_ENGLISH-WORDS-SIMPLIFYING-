@@ -34,70 +34,29 @@ try:
 except LookupError:
     nltk.download('omw-1.4')
 
-# CSS Styling with improved padding, font, and box-shadow
+# UI config
+st.set_page_config(page_title="BRAIN-CHILD DICTIONARY", layout="wide")
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-body {
-    font-family: 'Roboto', sans-serif;
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .app-header {
-    background: linear-gradient(90deg, #3498db, #2ecc71);
-    padding: 20px;
-    border-radius: 12px;
-    color: white;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    margin-bottom: 20px;
+  background: linear-gradient(90deg, #6a11cb, #2575fc);
+  padding: 20px; border-radius: 12px; color: white; text-align: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12); margin-bottom: 18px;
 }
-.main-container {
-    background-color: #f0f2f6;
-    padding: 20px;
-    border-radius: 12px;
-    margin-top: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.content-box {
-    background-color: #ffffff;
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    max-height: 450px;
-    overflow-y: auto;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.st-emotion-cache-1r65d8v {
-    background: #f0f2f6;
-}
-.st-emotion-cache-12m3106 {
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-.st-emotion-cache-1f8p3j0 > div {
-    margin-top: 0;
-}
-.st-emotion-cache-1f8p3j0 > div > div > h3 {
-    margin-top: 0;
-}
-.st-emotion-cache-1f8p3j0 > div > div > p {
-    margin-top: 0;
-}
+.card { background:#fff; padding:16px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06); margin-bottom:12px; }
+.small { color:#666; font-size:0.9rem; }
+.code-note { background:#f7f7fb; padding:10px; border-radius:8px; font-size:0.9rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# Streamlit page config
-st.set_page_config(page_title="Word Suffix Finder", layout="wide")
-CACHE_DIR = Path("data")
-CACHE_DIR.mkdir(exist_ok=True)
+st.markdown("<div class='app-header'><h1 style='margin:0'>🌟 BRAIN-CHILD DICTIONARY 🌟</h1><div class='small'>Tracing Sheet Generator • Suffix Finder • Dictionary Explorer</div></div>", unsafe_allow_html=True)
 
-# POS mapping
-POS_MAP = {
-    'n': 'Noun',
-    'v': 'Verb',
-    'a': 'Adjective',
-    's': 'Adjective (Satellite)',
-    'r': 'Adverb'
-}
+# Data dir
+DATA_DIR = Path("data"); DATA_DIR.mkdir(exist_ok=True)
+
+POS_MAP = {'n':'Noun','v':'Verb','a':'Adjective','s':'Adjective (Satellite)','r':'Adverb'}
 
 # Cached WordNet words
 @st.cache_data(show_spinner=False)
@@ -169,7 +128,6 @@ if DO_TTF:
     except Exception:
         DO_TTF = False
 
-# Function to create the PDF content
 # --- TRACER PDF generator (fixed settings per requirement) ---
 def create_tracer_pdf_buffer(words):
     """
@@ -177,7 +135,7 @@ def create_tracer_pdf_buffer(words):
       - 6 words per page (2 columns x 3 rows)
       - 5 clone rows per word (light-grey, bold)
       - full-width dashed underline
-      - dotted font if available, else Courier-Bold
+      - dotted font if available, else Helvetica-Bold
     Returns BytesIO buffer.
     """
     buf = BytesIO()
@@ -193,7 +151,7 @@ def create_tracer_pdf_buffer(words):
     col_w = (usable_w - col_gap)/2.0
     x_cols = [left_margin, left_margin + col_w + col_gap]
 
-    font_main = "Dotted" if DO_TTF else "Courier-Bold"
+    font_main = "Dotted" if DO_TTF else "Helvetica-Bold"
     font_clone = font_main
     font_size_main = 28
     font_size_clone = 28
@@ -246,47 +204,31 @@ def create_tracer_pdf_buffer(words):
     buf.seek(0)
     return buf
 
-
 # ------------------ UI: Suffix Finder (left) & Tracer Generator (right) ------------------
-# --- Main Streamlit App Layout ---
-st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY</h1><small>Learn spellings and master words with suffixes and meanings</small></div>", unsafe_allow_html=True)
-
 with st.container():
-    st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-    
-    col_input1, col_input2 = st.columns(2)
-    with col_input1:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
-    with col_input2:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only", "Tamil Only", "English + Tamil"], key='lang_choice_main')
+    left_col, right_col = st.columns([1,1])
 
-    # Layout for the main content sections
-    col1, col2 = st.columns(2, gap="large")
-
-    with col1:
-        st.subheader("🔎 Find Words")
-        with st.form("find_words_form"):
-            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
-            search_button = st.form_submit_button(label='Search Words')
-
-        if search_button:
-            all_words = sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
-            matches = find_matches(all_words, suffix_input, before_letters)
-            st.session_state['matches'] = matches
-            st.session_state['search_triggered'] = True
-            
-            st.markdown(f"**Total Words Found:** {len(matches)}")
-            
+    # LEFT: Suffix Finder
+    with left_col:
+        st.markdown("<div class='card'><h3>🔎 Suffix Finder</h3>", unsafe_allow_html=True)
+        suffix = st.text_input("Suffix (e.g., 'ing' or 'ight')", value="ing", key="suffix_input")
+        before_letters = st.number_input("Letters before suffix (0 = any)", min_value=0, step=1, value=0, key="before_letters")
+        run_search = st.button("Find Words", key="find_words_btn")
+        matches = []
+        if run_search:
+            all_words = get_all_words()
+            matches = find_matches(all_words, suffix, before_letters)
+            st.success(f"Found {len(matches)} words that end with '{suffix}'.")
             if matches:
-                matches_df = pd.DataFrame(matches, columns=["Word"])
-                st.dataframe(matches_df, height=450, use_container_width=True)
+                # Save matches to session for use in other actions
+                st.session_state['matches'] = matches
+                # show a first page of matches (cap)
+                st.dataframe(pd.DataFrame(matches[:200], columns=["Word"]), height=min(400, max(200, len(matches[:200])*28)), use_container_width=True)
             else:
-                st.info("No results found.")
+                st.info("No matches. Try another suffix or set 'letters before' = 0.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with col2:
-        st.subheader("📝 Word Tracer Generator")
-        
-        # RIGHT: Tracer Generator
+    # RIGHT: Tracer Generator
     with right_col:
         st.markdown("<div class='card'><h3>✏️ Tracer PDF Generator (6 words/page)</h3>", unsafe_allow_html=True)
         st.markdown("<div class='small'>Fixed: 5 clones / word • full-width dashed underline • 6 words/page</div>", unsafe_allow_html=True)
@@ -313,62 +255,57 @@ with st.container():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Word Definitions section is now below
-    st.markdown("---")
-    st.subheader("📘 Word Definitions")
+# ------------------ Dictionary Explorer ------------------
+st.markdown("<div class='card'><h3>📘 Dictionary Explorer</h3>", unsafe_allow_html=True)
+lang_choice = st.selectbox("Show meaning in:", ["English Only", "Tamil Only", "English + Tamil"], index=0, key="lang_choice")
 
-    if st.session_state.get('search_triggered'):
-        if 'matches' in st.session_state:
-            matches = st.session_state['matches']
-            if matches:
-                data_rows = []
-                for word in matches:
-                    syns = wordnet.synsets(word)
-                    if not syns:
-                        data_rows.append({"Word": word, "Word Type": "-", "English": "-", "Tamil": "-"})
-                    else:
-                        for syn in syns:
-                            eng = syn.definition()
-                            data_rows.append({
-                                "Word": word,
-                                "Word Type": POS_MAP.get(syn.pos(), "Noun"),
-                                "English": eng,
-                                "Tamil": "-"
-                            })
-
-                df_export = pd.DataFrame(data_rows)
-
-                if st.session_state.lang_choice_main == "English Only":
-                    df_view = df_export[["Word", "Word Type", "English"]]
-                elif st.session_state.lang_choice_main == "Tamil Only":
-                    df_view = df_export[["Word", "Word Type", "Tamil"]]
-                else:
-                    df_view = df_export
-
-                st.dataframe(df_view, height=450, use_container_width=True)
-
-                towrite = BytesIO()
-                with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
-                    df_export.to_excel(writer, index=False, sheet_name="Meanings")
-                towrite.seek(0)
-                st.download_button("📥 Download as EXCEL SHEET", towrite, file_name="all_meanings.xlsx")
-            else:
-                st.info("No results found.")
-        else:
-            st.info("Please enter a suffix and click 'Search Words' to see definitions.")
+build_label = "Build Meanings Table from suffix results" if 'matches' in st.session_state and st.session_state['matches'] else "Build Meanings Table (use default sample)"
+if st.button(build_label, key="build_meanings"):
+    if 'matches' in st.session_state and st.session_state['matches']:
+        words_for_defs = list(dict.fromkeys(st.session_state['matches']))
     else:
-        st.info("Please enter a suffix and click 'Search Words' to see definitions.")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
+        words_for_defs = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
 
+    rows=[]
+    for w in words_for_defs:
+        synsets = wordnet.synsets(w)
+        if synsets:
+            for syn in synsets[:3]:
+                rows.append({"Word": w, "Word Type": POS_MAP.get(syn.pos(), "Noun"), "English": syn.definition(), "Tamil":"", "Synonyms": ", ".join(find_synonyms(w)[:10]) or "-"})
+        else:
+            defs = dictapi_defs(w)
+            if defs:
+                for pos, d in defs:
+                    rows.append({"Word": w, "Word Type": pos or "-", "English": d, "Tamil":"", "Synonyms": ", ".join(find_synonyms(w)[:10]) or "-"})
+            else:
+                rows.append({"Word": w, "Word Type":"-","English":"-","Tamil":"-","Synonyms":"-"})
 
+    df = pd.DataFrame(rows)
 
+    # Tamil translations (parallel)
+    if lang_choice != "English Only" and not df.empty:
+        eng_list = df["English"].fillna("-").tolist()
+        with st.spinner("Fetching Tamil translations..."):
+            ta_list = translate_list_parallel(eng_list)
+        df["Tamil"] = ta_list
 
+    # Display chosen columns
+    if lang_choice == "English Only":
+        df_view = df[["Word","Word Type","English","Synonyms"]]
+    elif lang_choice == "Tamil Only":
+        df_view = df[["Word","Word Type","Tamil","Synonyms"]]
+    else:
+        df_view = df[["Word","Word Type","English","Tamil","Synonyms"]]
 
+    st.dataframe(df_view, height=min(600, max(300, len(df_view)*28)), use_container_width=True)
 
+    # Excel export
+    xbuf = BytesIO()
+    with pd.ExcelWriter(xbuf, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name="Meanings")
+    xbuf.seek(0)
+    st.download_button("📥 Download Meanings (Excel)", xbuf, file_name="meanings.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+st.markdown("</div>", unsafe_allow_html=True)
 
-
-
-
-
+st.caption("© BRAIN-CHILD — Tracing Generator + Dictionary Explorer • Fixed 6 words/page layout")
