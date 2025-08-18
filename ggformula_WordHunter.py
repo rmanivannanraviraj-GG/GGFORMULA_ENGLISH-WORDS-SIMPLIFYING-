@@ -99,48 +99,75 @@ POS_MAP = {
     'r': 'Adverb'
 }
 
-# Cached translation
+# Cached WordNet words
 @st.cache_data(show_spinner=False)
-def translate_to_tamil(text: str):
-    try:
-        return GoogleTranslator(source='auto', target='ta').translate(text)
-    except:
-        return ""
+def get_all_words():
+    return sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
 
-# Parallel translation wrapper
-def translate_list_parallel(texts, max_workers=10):
-    results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = list(executor.map(translate_to_tamil, texts))
-    return results
-
-# Find matching words
 def find_matches(words, suffix, before_letters):
     suf = suffix.lower()
-    matched = []
-    for w in words:
-        if w.lower().endswith(suf):
-            if before_letters == 0 or len(w) - len(suf) == before_letters:
-                matched.append(w)
-    matched.sort(key=len)
-    return matched
+    return sorted([w for w in words if w.lower().endswith(suf) and (before_letters == 0 or len(w) - len(suf) == before_letters)], key=len)
 
-# Find synonyms for a given word
 def find_synonyms(word):
-    synonyms = set()
+    s = set()
     for syn in wordnet.synsets(word):
-        for lemma in syn.lemmas():
-            synonyms.add(lemma.name().replace('_', ' '))
-    return list(synonyms)
+        for lem in syn.lemmas():
+            s.add(lem.name().replace('_',' '))
+    return list(s)
 
-# Highlight suffix in word with audio icon
-def make_highlight_html(word, suf):
-    if suf and word.lower().endswith(suf.lower()):
-        p = word[:-len(suf)]
-        s = word[-len(suf):]
-        return f"<div style='font-size:20px; padding:6px;'><span>{p}</span><span style='color:#e53935; font-weight:700'>{s}</span></div>"
-    else:
-        return f"<div style='font-size:20px; padding:6px;'>{word}</div>"
+# Translate helpers
+def translate_to_tamil(text):
+    if HAS_TRANSLATOR:
+        try:
+            return GoogleTranslator(source='auto', target='ta').translate(text)
+        except Exception:
+            pass
+    # fallback to google translate public endpoint
+    try:
+        res = requests.get("https://translate.googleapis.com/translate_a/single", params={"client":"gtx","sl":"en","tl":"ta","dt":"t","q": text}, timeout=8)
+        if res.status_code == 200:
+            return res.json()[0][0][0]
+    except Exception:
+        pass
+    return "(translation unavailable)"
+
+def translate_list_parallel(texts, max_workers=min(5, os.cpu_count() or 2)):
+    if not texts:
+        return []
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        return list(ex.map(translate_to_tamil, texts))
+
+# dictionaryapi.dev fallback
+def dictapi_defs(word, timeout=8):
+    try:
+        url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+        r = requests.get(url, timeout=timeout)
+        if r.status_code != 200:
+            return []
+        data = r.json()
+        defs = []
+        for meaning in data[0].get("meanings", []):
+            pos = meaning.get("partOfSpeech", "")
+            for d in meaning.get("definitions", []):
+                defs.append((pos, d.get("definition","")))
+        # dedupe & cap
+        seen=set(); out=[]
+        for pos, d in defs:
+            key=(pos, d.strip())
+            if d and key not in seen:
+                seen.add(key); out.append((pos, d))
+            if len(out)>=4: break
+        return out
+    except Exception:
+        return []
+
+# Optional dotted font support (if KGPrimaryDots.ttf present)
+DO_TTF = os.path.exists("KGPrimaryDots.ttf")
+if DO_TTF:
+    try:
+        pdfmetrics.registerFont(TTFont("Dotted", "KGPrimaryDots.ttf"))
+    except Exception:
+        DO_TTF = False
 
 # Function to create the PDF content
 def create_pdf_content(words):
@@ -315,6 +342,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
