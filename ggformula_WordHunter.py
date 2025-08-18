@@ -20,13 +20,15 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.colors import black, darkgrey
 
-# Set default encoding to UTF-8
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
-
-# Download WordNet data (only once)
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+# Ensure WordNet
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet')
+try:
+    nltk.data.find('corpora/omw-1.4')
+except LookupError:
+    nltk.download('omw-1.4')
 
 # CSS Styling with improved padding, font, and box-shadow
 st.markdown("""
@@ -309,6 +311,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
