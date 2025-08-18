@@ -177,7 +177,7 @@ def create_tracer_pdf_buffer(words):
       - 6 words per page (2 columns x 3 rows)
       - 5 clone rows per word (light-grey, bold)
       - full-width dashed underline
-      - dotted font if available, else Helvetica-Bold
+      - dotted font if available, else Courier-Bold
     Returns BytesIO buffer.
     """
     buf = BytesIO()
@@ -193,7 +193,7 @@ def create_tracer_pdf_buffer(words):
     col_w = (usable_w - col_gap)/2.0
     x_cols = [left_margin, left_margin + col_w + col_gap]
 
-    font_main = "Dotted" if DO_TTF else "Helvetica-Bold"
+    font_main = "Dotted" if DO_TTF else "Courier-Bold"
     font_clone = font_main
     font_size_main = 28
     font_size_clone = 28
@@ -360,6 +360,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
