@@ -25,15 +25,13 @@ try:
 except LookupError:
     nltk.download('omw-1.4')
 
-# Streamlit page config
+# Page config
 st.set_page_config(page_title="Word Suffix Finder", layout="wide")
 CACHE_DIR = Path("data")
 CACHE_DIR.mkdir(exist_ok=True)
 
-# POS mapping
 POS_MAP = {'n': 'Noun','v': 'Verb','a': 'Adjective','s': 'Adjective (Satellite)','r': 'Adverb'}
 
-# TTF font fallback
 DO_TTF = False
 
 # CSS Styling
@@ -44,6 +42,7 @@ body { font-family: 'Roboto', sans-serif; }
 .app-header { background: linear-gradient(90deg, #3498db, #2ecc71); padding: 20px; border-radius: 12px; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom:20px; }
 .main-container { background-color:#f0f2f6; padding:20px; border-radius:12px; margin-top:20px; box-shadow:0 2px 4px rgba(0,0,0,0.1);}
 .content-box { background-color:#ffffff; padding:15px; border-radius:8px; border:1px solid #e0e0e0; max-height:450px; overflow-y:auto; box-shadow:0 1px 2px rgba(0,0,0,0.05);}
+.stButton>button { background-color:#e74c3c; color:white; font-weight:bold; border-radius:8px; padding:6px 12px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -59,12 +58,18 @@ def translate_list_parallel(texts, max_workers=10):
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         return list(executor.map(translate_to_tamil, texts))
 
-# Cached WordNet words
+# Word list
 @st.cache_data
 def get_all_words():
-    return sorted(set(wordnet.all_lemma_names()), key=lambda x: (len(x), x.lower()))
+    wordnet_words = set(wordnet.all_lemma_names())
+    custom_file = Path("data/custom_words.txt")
+    custom_words = set()
+    if custom_file.exists():
+        custom_words = set(custom_file.read_text().splitlines())
+    # Dolch Sight words (example subset)
+    dolch_words = set(["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","I","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","up","we","where","yellow","you"])
+    return sorted(wordnet_words.union(custom_words).union(dolch_words), key=lambda x:(len(x), x.lower()))
 
-# Find matching words
 def find_matches(words, suffix, before_letters):
     suf = suffix.lower()
     matched = []
@@ -75,7 +80,6 @@ def find_matches(words, suffix, before_letters):
     matched.sort(key=len)
     return matched
 
-# PDF tracer generator
 def create_tracer_pdf_buffer(words):
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -87,7 +91,6 @@ def create_tracer_pdf_buffer(words):
     col_w = (usable_w - col_gap)/2
     x_cols = [left_margin, left_margin + col_w + col_gap]
 
-    # Font handling
     font_main = "Helvetica-Bold"
     if DO_TTF:
         try:
@@ -144,51 +147,43 @@ st.markdown("<div class='app-header'><h1 style='margin:0'>BRAIN-CHILD DICTIONARY
 
 with st.container():
     st.markdown("<div class='main-container'>", unsafe_allow_html=True)
-
-    # Inputs on top
-    col1_inputs, col2_inputs = st.columns(2)
-    with col1_inputs:
-        before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_main')
-    with col2_inputs:
-        lang_choice = st.selectbox("Show Meaning in:", ["English Only","Tamil Only","English + Tamil"], key='lang_choice_main')
-
+    
     col1, col2 = st.columns(2, gap="large")
 
-    # Find Words
+    # Find Words Form
     with col1:
         st.subheader("🔎 Find Words")
-        suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+        with st.form("find_words_form"):
+            suffix_input = st.text_input("Suffix (e.g., 'ight')", value="ight", key='suffix_input_form')
+            before_letters = st.number_input("Letters Before Suffix (0 for any number)", min_value=0, step=1, value=0, key='before_letters_form')
+            submit_button = st.form_submit_button("Apply")
+            if submit_button:
+                all_words = get_all_words()
+                matches = find_matches(all_words, suffix_input, before_letters)
+                st.session_state['matches'] = matches
+                st.session_state['search_triggered'] = True
+                st.markdown(f"**Total Words Found:** {len(matches)}")
+                if matches:
+                    st.dataframe(pd.DataFrame(matches, columns=["Word"]), height=450, use_container_width=True)
+                else:
+                    st.info("No results found.")
 
-        all_words = get_all_words()
-        if suffix_input.strip():
-            matches = find_matches(all_words, suffix_input, before_letters)
-            st.session_state['matches'] = matches
-            st.session_state['search_triggered'] = True
-            st.markdown(f"**Total Words Found:** {len(matches)}")
-            if matches:
-                st.dataframe(pd.DataFrame(matches, columns=["Word"]), height=450, use_container_width=True)
-            else:
-                st.info("No results found.")
-
-    # PDF Tracer Generator
+    # PDF Tracer
     with col2:
         st.subheader("📝 Word Tracer Generator")
         if st.session_state.get('search_triggered') and 'matches' in st.session_state:
-            matches_to_use = "\n".join(st.session_state['matches'])
-            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
+            words_input = st.text_area("Enter words for practice (one per line):", value="\n".join(st.session_state['matches']), height=150)
         else:
-            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-        tracer_button = st.button("Generate PDF")
-        if tracer_button:
+            words_input = st.text_area("Enter words for practice (one per line):", height=150)
+        if st.button("Generate PDF"):
             words_for_tracer = [w.strip() for w in words_input.split('\n') if w.strip()]
             if words_for_tracer:
                 pdf_data = create_tracer_pdf_buffer(words_for_tracer)
                 st.download_button("Download Practice Sheet as PDF", data=pdf_data, file_name="word_tracer_sheet.pdf", mime="application/pdf")
 
-    # Word Definitions
     st.markdown("---")
     st.subheader("📘 Word Definitions")
-
+    lang_choice = st.selectbox("Show Meaning in:", ["English Only","Tamil Only","English + Tamil"], key='lang_choice_main_def')
     if st.session_state.get('search_triggered') and 'matches' in st.session_state:
         matches = st.session_state['matches']
         if matches:
@@ -200,20 +195,14 @@ with st.container():
                 else:
                     for syn in syns:
                         data_rows.append({"Word": word, "Word Type":POS_MAP.get(syn.pos(),"Noun"), "English": syn.definition(), "Tamil":"-"})
-
             df_export = pd.DataFrame(data_rows)
-
-            # Tamil translation handling
             if lang_choice in ["Tamil Only","English + Tamil"]:
                 if "Tamil" not in df_export.columns or df_export["Tamil"].isnull().all():
                     df_export["Tamil"] = translate_list_parallel(df_export["English"].tolist())
-
             if lang_choice=="English Only": df_view = df_export[["Word","Word Type","English"]]
             elif lang_choice=="Tamil Only": df_view = df_export[["Word","Word Type","Tamil"]]
             else: df_view = df_export
-
             st.dataframe(df_view, height=450, use_container_width=True)
-
             towrite = BytesIO()
             with pd.ExcelWriter(towrite, engine="xlsxwriter") as writer:
                 df_export.to_excel(writer, index=False, sheet_name="Meanings")
@@ -222,6 +211,6 @@ with st.container():
         else:
             st.info("No results found.")
     else:
-        st.info("Please enter a suffix and click 'Search Words' to see definitions.")
-
+        st.info("Please enter a suffix and click 'Apply' to see definitions.")
+    
     st.markdown("</div>", unsafe_allow_html=True)
