@@ -286,26 +286,32 @@ with st.container():
     with col2:
         st.subheader("📝 Word Tracer Generator")
         
-        # Check if matches are available to pre-fill the text area
-        if st.session_state.get('search_triggered') and 'matches' in st.session_state:
-            matches_to_use = "\n".join(st.session_state['matches'])
-            words_input = st.text_area("Enter words for practice (one per line):", value=matches_to_use, height=150, key='words_input_form')
+        # RIGHT: Tracer Generator
+    with right_col:
+        st.markdown("<div class='card'><h3>✏️ Tracer PDF Generator (6 words/page)</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='small'>Fixed: 5 clones / word • full-width dashed underline • 6 words/page</div>", unsafe_allow_html=True)
+
+        # Use matches if available, else sample defaults
+        words_source = st.session_state.get('matches', None)
+        if words_source:
+            st.markdown(f"**Using {len(words_source)} match(es) from suffix search.**")
+            use_count = st.number_input("How many matches to include (max 48)", min_value=1, max_value=min(200, len(words_source)), value=min(24, len(words_source)), key="use_count")
+            selected_words = words_source[:use_count]
         else:
-            words_input = st.text_area("Enter words for practice (one per line):", height=150, key='words_input_form')
-        
-        tracer_button = st.button(label='Generate PDF')
-            
-        if tracer_button:
-            words_for_tracer = [word.strip() for word in words_input.split('\n') if word.strip()]
-            if words_for_tracer:
-                pdf_data = create_pdf_content(words_for_tracer)
-                if pdf_data:
-                    st.download_button(
-                        label="Download Practice Sheet as PDF",
-                        data=pdf_data,
-                        file_name="word_tracer_sheet.pdf",
-                        mime="application/pdf"
-                    )
+            # default example set (no manual input box)
+            default_words = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
+            st.markdown("No suffix search run — using default sample words.")
+            selected_words = default_words
+
+        if st.button("Generate Tracing PDF (from selected list)", key="gen_pdf_btn"):
+            if not selected_words:
+                st.warning("No words available to generate PDF.")
+            else:
+                pdf_buf = create_tracer_pdf_buffer(selected_words)
+                st.download_button("📥 Download Tracing PDF", data=pdf_buf, file_name="tracing_practice.pdf", mime="application/pdf", key="dl_pdf")
+                st.success("PDF generated — download ready.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # Word Definitions section is now below
     st.markdown("---")
@@ -354,6 +360,7 @@ with st.container():
         st.info("Please enter a suffix and click 'Search Words' to see definitions.")
     
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
