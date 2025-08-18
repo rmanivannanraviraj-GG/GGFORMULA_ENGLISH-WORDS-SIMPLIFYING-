@@ -247,6 +247,56 @@ def create_tracer_pdf_buffer(words):
     return buf
 
 
+# ------------------ UI: Suffix Finder (left) & Tracer Generator (right) ------------------
+with st.container():
+    left_col, right_col = st.columns([1,1])
+
+    # LEFT: Suffix Finder
+    with left_col:
+        st.markdown("<div class='card'><h3>🔎 Suffix Finder</h3>", unsafe_allow_html=True)
+        suffix = st.text_input("Suffix (e.g., 'ing' or 'ight')", value="ing", key="suffix_input")
+        before_letters = st.number_input("Letters before suffix (0 = any)", min_value=0, step=1, value=0, key="before_letters")
+        run_search = st.button("Find Words", key="find_words_btn")
+        matches = []
+        if run_search:
+            all_words = get_all_words()
+            matches = find_matches(all_words, suffix, before_letters)
+            st.success(f"Found {len(matches)} words that end with '{suffix}'.")
+            if matches:
+                # Save matches to session for use in other actions
+                st.session_state['matches'] = matches
+                # show a first page of matches (cap)
+                st.dataframe(pd.DataFrame(matches[:200], columns=["Word"]), height=min(400, max(200, len(matches[:200])*28)), use_container_width=True)
+            else:
+                st.info("No matches. Try another suffix or set 'letters before' = 0.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # RIGHT: Tracer Generator
+    with right_col:
+        st.markdown("<div class='card'><h3>✏️ Tracer PDF Generator (6 words/page)</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='small'>Fixed: 5 clones / word • full-width dashed underline • 6 words/page</div>", unsafe_allow_html=True)
+
+        # Use matches if available, else sample defaults
+        words_source = st.session_state.get('matches', None)
+        if words_source:
+            st.markdown(f"**Using {len(words_source)} match(es) from suffix search.**")
+            use_count = st.number_input("How many matches to include (max 48)", min_value=1, max_value=min(200, len(words_source)), value=min(24, len(words_source)), key="use_count")
+            selected_words = words_source[:use_count]
+        else:
+            # default example set (no manual input box)
+            default_words = ["apple","ball","cat","dog","egg","fish","goat","hat","ice","jug","kite","lion"]
+            st.markdown("No suffix search run — using default sample words.")
+            selected_words = default_words
+
+        if st.button("Generate Tracing PDF (from selected list)", key="gen_pdf_btn"):
+            if not selected_words:
+                st.warning("No words available to generate PDF.")
+            else:
+                pdf_buf = create_tracer_pdf_buffer(selected_words)
+                st.download_button("📥 Download Tracing PDF", data=pdf_buf, file_name="tracing_practice.pdf", mime="application/pdf", key="dl_pdf")
+                st.success("PDF generated — download ready.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
 # --- Main Streamlit App Layout ---
 # ------------------ Dictionary Explorer ------------------
 st.markdown("<div class='card'><h3>📘 Dictionary Explorer</h3>", unsafe_allow_html=True)
@@ -302,6 +352,7 @@ if st.button(build_label, key="build_meanings"):
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption("© BRAIN-CHILD — Tracing Generator + Dictionary Explorer • Fixed 6 words/page layout")
+
 
 
 
